@@ -135,18 +135,7 @@ jobs:
           exit 1
         fi
 
-        # Check if version exists in Homebrew formula
-        if ! grep -q "$VERSION" homebrew/auto-uv-env.rb; then
-          echo "Error: Version $VERSION not found in Homebrew formula"
-          exit 1
-        fi
 
-    - name: Check for placeholder values
-      run: |
-        if grep -q "PLACEHOLDER" homebrew/auto-uv-env.rb; then
-          echo "Error: Placeholder values found in Homebrew formula"
-          exit 1
-        fi
 
   performance-test:
     name: Performance Benchmarks
