@@ -32,6 +32,7 @@ repos:
           '--shell=bash',
           '--external-sources',
           '--check-sourced',
+          '-e', 'SC1091',
         ]
         files: '\.(sh|bash)$|^auto-uv-env$'
         exclude: '^\.git/'

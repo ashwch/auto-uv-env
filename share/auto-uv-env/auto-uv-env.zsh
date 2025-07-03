@@ -68,7 +68,8 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             if [[ -n "$activate_path" ]] && [[ -f "$activate_path/bin/activate" ]]; then
                 source "$activate_path/bin/activate"
                 if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
-                    local python_version=$(python --version 2>&1 | cut -d' ' -f2)
+                    local python_version
+                    python_version=$(python --version 2>&1 | cut -d' ' -f2)
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
                 fi
             fi
