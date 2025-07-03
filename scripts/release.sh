@@ -163,8 +163,8 @@ update_version_files() {
     sed -i.bak "s/VERSION=\".*\"/VERSION=\"$VERSION\"/" "$PROJECT_DIR/auto-uv-env"
     rm -f "$PROJECT_DIR/auto-uv-env.bak"
 
-    # Update pyproject.toml
-    sed -i.bak "s/version = \".*\"/version = \"$VERSION\"/" "$PROJECT_DIR/pyproject.toml"
+    # Update pyproject.toml (only the version field, not target-version)
+    sed -i.bak "s/^version = \".*\"/version = \"$VERSION\"/" "$PROJECT_DIR/pyproject.toml"
     rm -f "$PROJECT_DIR/pyproject.toml.bak"
 
     # Update CHANGELOG.md (add new section at top)

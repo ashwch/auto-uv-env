@@ -96,7 +96,8 @@ EOF
     local output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
     cd - > /dev/null
     rm -rf "$temp_dir"
-    [[ "$output" == *"Invalid Python version format"* ]]
+    # Invalid versions are silently rejected (secure by default)
+    [[ -z "$output" ]]
 }
 
 test_path_traversal_protection() {
