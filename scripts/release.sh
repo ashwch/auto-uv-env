@@ -168,7 +168,7 @@ update_version_files() {
     rm -f "$PROJECT_DIR/pyproject.toml.bak"
 
     # Update CHANGELOG.md if entry doesn't exist
-    if [[ -f "$PROJECT_DIR/CHANGELOG.md" ]] && ! grep -q "## [$VERSION]" "$PROJECT_DIR/CHANGELOG.md"; then
+    if [[ -f "$PROJECT_DIR/CHANGELOG.md" ]] && ! grep -q "^## \[$VERSION\]" "$PROJECT_DIR/CHANGELOG.md"; then
         print_step "Adding new entry to CHANGELOG.md for v$VERSION"
         local changelog_entry="## [$VERSION] - $(date +%Y-%m-%d)
 
