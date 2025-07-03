@@ -96,8 +96,8 @@ EOF
     local output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
     cd - > /dev/null
     rm -rf "$temp_dir"
-    # Invalid versions are silently rejected (secure by default)
-    [[ -z "$output" ]]
+    # Invalid versions should still allow venv creation but without specific Python version
+    [[ "$output" == *"CREATE_VENV=1"* ]] && [[ "$output" == *"MSG_SETUP="* ]] && [[ ! "$output" == *"PYTHON_VERSION="* ]]
 }
 
 test_path_traversal_protection() {
