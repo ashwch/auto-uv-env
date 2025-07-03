@@ -7,21 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.3] - 2025-07-03
 
-### Added
--
-
-### Changed
--
-
-### Fixed
--
-
-
-## [1.0.3] - 2025-07-03
-
 ### Fixed
 - **CRITICAL**: Fixed print_debug function causing script to exit silently with set -e
 - This was the final bug preventing auto-uv-env from working in normal (non-debug) mode
+- Fixed invalid version format test to reflect correct behavior
 
 
 ## [1.0.2] - 2025-07-03
