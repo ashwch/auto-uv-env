@@ -1,8 +1,8 @@
 title: auto-uv-env
 description: Automatic UV-based Python virtual environment management
 theme: minima
-url: https://auto-uv-env.ashwch.com
-baseurl: ""
+url: https://ashwch.com
+baseurl: /auto-uv-env
 
 plugins:
   - jekyll-feed
