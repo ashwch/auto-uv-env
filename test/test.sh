@@ -4,7 +4,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AUTO_UV_ENV="$SCRIPT_DIR/../auto-uv-env"
+PROJECT_ROOT="$SCRIPT_DIR/.."
+
+# Add project root to PATH for tests
+export PATH="$PROJECT_ROOT:$PATH"
+
+AUTO_UV_ENV="$PROJECT_ROOT/auto-uv-env"
 
 # Colors
 GREEN='\033[0;32m'
