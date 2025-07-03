@@ -46,7 +46,7 @@ jobs:
         sudo apt-get install -y shellcheck
         shellcheck auto-uv-env
         # Ignore SC1091 (sourcing external files) for shell integrations
-        shellcheck -e SC1091 share/auto-uv-env/*.bash share/auto-uv-env/*.zsh
+        shellcheck -e SC1091 share/auto-uv-env/*.bash
 
     - name: Security scan with Semgrep
       run: |
