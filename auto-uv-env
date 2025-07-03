@@ -376,8 +376,6 @@ EOF
 case "${1:-}" in
     --version|-v)
         echo "auto-uv-env $VERSION"
-        echo "UV-specific Python environment manager"
-        echo "https://github.com/ashwch/auto-uv-env"
         exit 0
         ;;
     --check)
