@@ -77,11 +77,13 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                 source "$activate_path/bin/activate"
                 if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
                     local activated_python_version
-                    activated_python_version=$(python --version 2>&1 | cut -d' ' -f2)
-                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $activated_python_version)"
+                    local activated_python_version_export
+                    activated_python_version_export=$(python --version 2>&1 | cut -d' ' -f2)
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $activated_python_version_export)"
                 fi
-                local activated_python_version_export=$(python --version 2>&1 | cut -d' ' -f2)
-                export AUTO_UV_ENV_PYTHON_VERSION="$activated_python_version_export"
+                local auto_uv_env_python_version_val
+                auto_uv_env_python_version_val=$(python --version 2>&1 | cut -d' ' -f2)
+                export AUTO_UV_ENV_PYTHON_VERSION="$auto_uv_env_python_version_val"
             fi
     }
 

@@ -35,7 +35,7 @@ repos:
           '-e', 'SC1091',
         ]
         files: '\.(sh|bash)$|^auto-uv-env$'
-        exclude: '^\.git/'
+        exclude: '^\.git/|share/auto-uv-env/auto-uv-env\.zsh$'
 
   # Security scanning
   - repo: https://github.com/Yelp/detect-secrets
@@ -44,7 +44,6 @@ repos:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
         exclude: '^\.git/|^test/.*\.sh$'
-
 
   # Local hooks for project-specific checks
   - repo: local
