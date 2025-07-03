@@ -382,7 +382,8 @@ verify_installation() {
     print_step "Verifying Homebrew installation"
 
     # Test that the formula can be installed
-    brew audit ashwch/tap/auto-uv-env 2>/dev/null || true
+    brew tap ashwch/tap 2>/dev/null || true
+    brew audit auto-uv-env 2>/dev/null || true
 
     print_success "Installation verification complete"
 }

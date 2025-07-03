@@ -376,6 +376,8 @@ EOF
 case "${1:-}" in
     --version|-v)
         echo "auto-uv-env $VERSION"
+        # Ensure output is flushed before exit to prevent broken pipe
+        sleep 0.001 2>/dev/null || true
         exit 0
         ;;
     --check)
