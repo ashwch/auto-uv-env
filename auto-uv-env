@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# auto-uv-env - Automatic UV-based Python environment management
+# https://github.com/ashwch/auto-uv-env
+#
+# Copyright (c) 2024 Ashwini Chaudhary
+# Licensed under the MIT License
+
+set -euo pipefail
+
+VERSION="1.0.0"
+VENV_DIR="${AUTO_UV_ENV_VENV_NAME:-.venv}"
+QUIET_MODE="${AUTO_UV_ENV_QUIET:-0}"
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+# Print colored output unless in quiet mode
+print_status() {
+    [[ "$QUIET_MODE" == "1" ]] && return
+    echo -e "${BLUE}🐍${NC} $1"
+}
+
+print_success() {
+    [[ "$QUIET_MODE" == "1" ]] && return
+    echo -e "${GREEN}✅${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}❌${NC} $1" >&2
+}
+
+print_deactivate() {
+    [[ "$QUIET_MODE" == "1" ]] && return
+    echo -e "${YELLOW}⬇️${NC}  $1"
+}
+
+# Check if UV is available
+check_uv() {
+    if ! command -v uv >/dev/null 2>&1; then
+        echo "print_error 'auto-uv-env: UV not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh'"
+        exit 1
+    fi
+}
+
+# Parse Python version from pyproject.toml
+get_python_version() {
+    local project_file="$1/pyproject.toml"
+    [[ -f "$project_file" ]] || return 1
+    
+    # Try different patterns for Python version specification
+    local version
+    version=$(grep -E "requires-python|python_requires" "$project_file" 2>/dev/null | 
+              sed -E 's/.*[">]=?([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/' | 
+              head -1)
+    
+    echo "$version"
+}
+
+# Main directory check function
+check_directory() {
+    local dir="${1:-$PWD}"
+    
+    # Quick exit if no pyproject.toml
+    if [[ ! -f "$dir/pyproject.toml" ]]; then
+        # Check if we need to deactivate
+        if [[ -n "${VIRTUAL_ENV:-}" ]]; then
+            echo "deactivate 2>/dev/null || true"
+            echo "print_deactivate 'Deactivated UV environment'"
+        fi
+        return 0
+    fi
+    
+    local venv_path="$dir/$VENV_DIR"
+    local py_version
+    py_version=$(get_python_version "$dir")
+    
+    # Create venv if needed
+    if [[ ! -d "$venv_path" ]]; then
+        if [[ -n "$py_version" ]]; then
+            echo "print_status 'Setting up Python $py_version with UV...'"
+            echo "uv python install '$py_version' 2>/dev/null || true"
+            echo "uv venv --python '$py_version' || uv venv"
+        else
+            echo "print_status 'Creating UV environment...'"
+            echo "uv venv"
+        fi
+        echo "print_success 'Virtual environment created'"
+    fi
+    
+    # Activate if needed
+    if [[ -f "$venv_path/bin/activate" ]] && [[ "${VIRTUAL_ENV:-}" != "$venv_path" ]]; then
+        echo "source '$venv_path/bin/activate'"
+        if [[ "$QUIET_MODE" != "1" ]]; then
+            echo "python_version=\$(python --version 2>&1 | cut -d' ' -f2)"
+            echo "echo -e '${GREEN}🚀${NC} UV environment activated (Python \$python_version)'"
+        fi
+    fi
+}
+
+# Show help
+show_help() {
+    cat << EOF
+auto-uv-env - Automatic UV Python environment management
+
+Version: $VERSION
+Author: Ashwini Chaudhary (https://github.com/ashwch)
+
+USAGE:
+    auto-uv-env [OPTIONS]
+    auto-uv-env --check [DIRECTORY]
+
+OPTIONS:
+    --check [DIR]    Check and activate UV environment in directory
+    --version, -v    Show version information
+    --help, -h       Show this help message
+
+SHELL INTEGRATION:
+    For zsh (~/.zshrc):
+        source \$(brew --prefix)/share/auto-uv-env/auto-uv-env.zsh
+    
+    For bash (~/.bashrc):
+        source \$(brew --prefix)/share/auto-uv-env/auto-uv-env.bash
+    
+    For fish (~/.config/fish/config.fish):
+        source \$(brew --prefix)/share/auto-uv-env/auto-uv-env.fish
+
+ENVIRONMENT VARIABLES:
+    AUTO_UV_ENV_QUIET=1        Suppress status messages
+    AUTO_UV_ENV_VENV_NAME=dir  Use custom venv directory (default: .venv)
+
+REQUIREMENTS:
+    - UV (https://github.com/astral-sh/uv)
+    - pyproject.toml in project directory
+
+EXAMPLES:
+    # Check current directory
+    auto-uv-env --check
+    
+    # Check specific directory
+    auto-uv-env --check /path/to/project
+    
+    # Use with quiet mode
+    AUTO_UV_ENV_QUIET=1 auto-uv-env --check
+
+For more information, visit: https://github.com/ashwch/auto-uv-env
+EOF
+}
+
+# Main CLI handling
+case "${1:-}" in
+    --version|-v)
+        echo "auto-uv-env $VERSION"
+        echo "UV-specific Python environment manager"
+        echo "https://github.com/ashwch/auto-uv-env"
+        exit 0
+        ;;
+    --check)
+        check_uv
+        check_directory "${2:-$PWD}"
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    "")
+        # No arguments - check current directory
+        check_uv
+        check_directory "$PWD"
+        ;;
+    *)
+        echo "Unknown option: $1"
+        echo "Use --help for usage information"
+        exit 1
+        ;;
+esac
