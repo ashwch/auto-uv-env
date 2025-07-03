@@ -8,30 +8,26 @@
 if command -v auto-uv-env >/dev/null 2>&1; then
     # Function to check and activate UV environments
     auto_uv_env() {
-        # Generate a unique but predictable state file path
-        local state_file="/tmp/auto-uv-env.$.$RANDOM.state"
+        local directives
+        directives=$(auto-uv-env --check-safe "$PWD")
 
-        # Get state from auto-uv-env, passing state file path
-        if ! auto-uv-env --check-safe "$PWD" "$state_file" 2>&1; then
-            rm -f "$state_file" # Clean up on error
+        # If no directives, nothing to do
+        if [[ -z "$directives" ]]; then
             return 0
         fi
 
-        # Process state file
-        if [[ -f "$state_file" ]]; then
-            local create_venv="" python_version="" msg_setup="" activate_path="" deactivate=""
+        local create_venv="" python_version="" msg_setup="" activate_path="" deactivate=""
 
-            # Parse state file
-            while IFS='=' read -r key value; do
-                case "$key" in
-                    CREATE_VENV) create_venv="$value" ;;
-                    PYTHON_VERSION) python_version="$value" ;;
-                    MSG_SETUP) msg_setup="$value" ;;
-                    ACTIVATE) activate_path="$value" ;;
-                    DEACTIVATE) deactivate="$value" ;;
-                esac
-            done < "$state_file"
-            rm -f "$state_file"
+        # Parse directives from output
+        while IFS='=' read -r key value; do
+            case "$key" in
+                CREATE_VENV) create_venv="$value" ;;
+                PYTHON_VERSION) python_version="$value" ;;
+                MSG_SETUP) msg_setup="$value" ;;
+                ACTIVATE) activate_path="$value" ;;
+                DEACTIVATE) deactivate="$value" ;;
+            esac
+        done <<< "$directives"
 
             # Handle deactivation
             if [[ -n "$deactivate" ]]; then
@@ -75,7 +71,6 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
                 fi
             fi
-        fi
     }
 
     # Store the original PROMPT_COMMAND to chain properly

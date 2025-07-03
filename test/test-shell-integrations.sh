@@ -173,10 +173,11 @@ EOF
     # Test the actual function
     local result
     result=$(bash -c "
+        set -x # Enable debugging
         source '$INTEGRATION_DIR/auto-uv-env.bash'
 
         # Use real auto-uv-env but mock UV
-        export PATH='$SCRIPT_DIR/../:\$PATH'
+        export PATH="$SCRIPT_DIR/../:$PATH"
 
         # Mock UV to avoid actual creation
         uv() {
@@ -198,6 +199,10 @@ EOF
             echo 'END_TO_END_SUCCESS'
         fi
     ")
+
+    echo "--- Debug Output ---"
+    echo "Result: $result"
+    echo "--------------------"
 
     cd - > /dev/null
     rm -rf "$temp_dir"

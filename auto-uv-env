@@ -21,12 +21,12 @@ NC='\033[0m' # No Color
 # Print colored output unless in quiet mode
 print_status() {
     [[ "$QUIET_MODE" == "1" ]] && return
-    echo -e "${BLUE}🐍${NC} $1"
+    echo -e "${BLUE}🐍${NC} $1" >&2
 }
 
 print_success() {
     [[ "$QUIET_MODE" == "1" ]] && return
-    echo -e "${GREEN}✅${NC} $1"
+    echo -e "${GREEN}✅${NC} $1" >&2
 }
 
 print_error() {
@@ -40,7 +40,7 @@ print_debug() {
 
 print_deactivate() {
     [[ "$QUIET_MODE" == "1" ]] && return
-    echo -e "${YELLOW}⬇️${NC}  $1"
+    echo -e "${YELLOW}⬇️${NC}  $1" >&2
 }
 
 # Validate and set venv directory name
@@ -123,24 +123,11 @@ get_python_version() {
     fi
 }
 
-# Generate state file path
-get_state_file() {
-    echo "/tmp/auto-uv-env.$$.$RANDOM.state"
-}
-
 # Main directory check function
 check_directory() {
     local dir="${1:-$PWD}"
-    local state_file="${2:-}"
-
-    # Always require state file for security and consistency
-    if [[ -z "$state_file" ]]; then
-        print_error "Internal error: state file required"
-        exit 1
-    fi
 
     print_debug "Checking directory: $dir"
-    print_debug "State file: $state_file"
     print_debug "VENV_DIR: $VENV_DIR"
 
     # Quick exit if disabled or no pyproject.toml
@@ -154,7 +141,7 @@ check_directory() {
         # Check if we need to deactivate
         if [[ -n "${VIRTUAL_ENV:-}" ]]; then
             print_debug "Deactivating current environment: $VIRTUAL_ENV"
-            echo "DEACTIVATE=1" > "$state_file"
+            echo "DEACTIVATE=1"
         fi
         return 0
     fi
@@ -168,18 +155,18 @@ check_directory() {
 
     # Create venv if needed
     if [[ ! -d "$venv_path" ]]; then
-        echo "CREATE_VENV=1" >> "$state_file"
+        echo "CREATE_VENV=1"
         if [[ -n "$py_version" ]]; then
-            echo "PYTHON_VERSION=$py_version" >> "$state_file"
-            echo "MSG_SETUP=🐍 Setting up Python $py_version with UV..." >> "$state_file"
+            echo "PYTHON_VERSION=$py_version"
+            echo "MSG_SETUP=🐍 Setting up Python $py_version with UV..."
         else
-            echo "MSG_SETUP=🐍 Creating UV environment..." >> "$state_file"
+            echo "MSG_SETUP=🐍 Creating UV environment..."
         fi
     fi
 
     # Activate if needed
     if [[ -f "$venv_path/bin/activate" ]] && [[ "${VIRTUAL_ENV:-}" != "$venv_path" ]]; then
-        echo "ACTIVATE=$venv_path" >> "$state_file"
+        echo "ACTIVATE=$venv_path"
     elif [[ ! -f "$venv_path/bin/activate" ]] && [[ ! -d "$venv_path" ]]; then
         # Venv creation is needed and will be handled by shell integration
         :
@@ -399,14 +386,9 @@ case "${1:-}" in
         exit 1
         ;;
     --check-safe)
-        # Safe mode using state file instead of eval
+        # Safe mode using standard output
         check_uv
-        state_file="$(get_state_file)"
-        check_directory "${2:-$PWD}" "$state_file"
-        if [[ -f "$state_file" ]]; then
-            cat "$state_file"
-            rm -f "$state_file"
-        fi
+        check_directory "${2:-$PWD}"
         ;;
     --validate)
         validate_versions
