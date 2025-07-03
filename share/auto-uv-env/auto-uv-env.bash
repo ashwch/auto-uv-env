@@ -8,6 +8,11 @@
 if command -v auto-uv-env >/dev/null 2>&1; then
     # Function to check and activate UV environments
     auto_uv_env() {
+        # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
+        if [[ -z "${VIRTUAL_ENV:-}" ]] && [[ -n "${AUTO_UV_ENV_PYTHON_VERSION:-}" ]]; then
+            unset AUTO_UV_ENV_PYTHON_VERSION
+        fi
+
         local directives
         directives=$(auto-uv-env --check-safe "$PWD")
 
@@ -31,9 +36,14 @@ if command -v auto-uv-env >/dev/null 2>&1; then
 
             # Handle deactivation
             if [[ -n "$deactivate" ]]; then
+                echo "DEBUG: Inside deactivate block. VIRTUAL_ENV before deactivate: ${VIRTUAL_ENV:-unset}" >&2
                 if command -v deactivate >/dev/null 2>&1; then
                     deactivate
                 fi
+                echo "DEBUG: VIRTUAL_ENV after deactivate: ${VIRTUAL_ENV:-unset}" >&2
+                echo "DEBUG: AUTO_UV_ENV_PYTHON_VERSION before unset: ${AUTO_UV_ENV_PYTHON_VERSION:-unset}" >&2
+                unset AUTO_UV_ENV_PYTHON_VERSION
+                echo "DEBUG: AUTO_UV_ENV_PYTHON_VERSION after unset: ${AUTO_UV_ENV_PYTHON_VERSION:-unset}" >&2
                 [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
                 return 0
             fi
@@ -66,10 +76,11 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             if [[ -n "$activate_path" ]] && [[ -f "$activate_path/bin/activate" ]]; then
                 source "$activate_path/bin/activate"
                 if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
-                    local python_version
-                    python_version=$(python --version 2>&1 | cut -d' ' -f2)
-                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                    local activated_python_version
+                    activated_python_version=$(python --version 2>&1 | cut -d' ' -f2)
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $activated_python_version)"
                 fi
+                export AUTO_UV_ENV_PYTHON_VERSION=$(python --version 2>&1 | cut -d' ' -f2)
             fi
     }
 

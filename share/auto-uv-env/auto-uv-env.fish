@@ -8,6 +8,11 @@
 if command -v auto-uv-env >/dev/null 2>&1
     # Function to check and activate UV environments
     function auto_uv_env
+        # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
+        if test -z "$VIRTUAL_ENV"; and test -n "$AUTO_UV_ENV_PYTHON_VERSION"
+            set -e AUTO_UV_ENV_PYTHON_VERSION
+        end
+
         set -l state_file "/tmp/auto-uv-env."(echo %self)".state"
 
         # Get state from auto-uv-env
@@ -51,6 +56,7 @@ if command -v auto-uv-env >/dev/null 2>&1
                 if command -v deactivate >/dev/null 2>&1
                     deactivate
                 end
+                set -e AUTO_UV_ENV_PYTHON_VERSION
                 if test "$AUTO_UV_ENV_QUIET" != "1"
                     echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
                 end
@@ -94,6 +100,7 @@ if command -v auto-uv-env >/dev/null 2>&1
                     set -l python_version (python --version 2>&1 | cut -d' ' -f2)
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
                 end
+                set -gx AUTO_UV_ENV_PYTHON_VERSION (python --version 2>&1 | cut -d' ' -f2)
             else if test -n "$activate_path" -a -f "$activate_path/pyvenv.cfg"
                 # Fish-specific activation when activate.fish doesn't exist
                 set -gx VIRTUAL_ENV $activate_path
@@ -103,6 +110,7 @@ if command -v auto-uv-env >/dev/null 2>&1
                     set -l python_version (python --version 2>&1 | cut -d' ' -f2)
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
                 end
+                set -gx AUTO_UV_ENV_PYTHON_VERSION (python --version 2>&1 | cut -d' ' -f2)
             end
         end
     end

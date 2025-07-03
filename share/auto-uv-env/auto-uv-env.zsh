@@ -8,7 +8,12 @@
 if command -v auto-uv-env >/dev/null 2>&1; then
     # Function to check and activate UV environments
     auto_uv_env() {
-        local state_file="/tmp/auto-uv-env.$$.state"
+        # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
+        if [[ -z "${VIRTUAL_ENV:-}" ]] && [[ -n "${AUTO_UV_ENV_PYTHON_VERSION:-}" ]]; then
+            unset AUTO_UV_ENV_PYTHON_VERSION
+        fi
+
+        local state_file="/tmp/auto-uv-env.$.state"
 
         # Get state from auto-uv-env
         if ! auto-uv-env --check-safe "$PWD" > "$state_file" 2>&1; then
@@ -36,6 +41,7 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                 if command -v deactivate >/dev/null 2>&1; then
                     deactivate
                 fi
+                unset AUTO_UV_ENV_PYTHON_VERSION
                 [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
                 return 0
             fi
@@ -68,10 +74,11 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             if [[ -n "$activate_path" ]] && [[ -f "$activate_path/bin/activate" ]]; then
                 source "$activate_path/bin/activate"
                 if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
-                    local python_version
-                    python_version=$(python --version 2>&1 | cut -d' ' -f2)
-                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                    local activated_python_version
+                    activated_python_version=$(python --version 2>&1 | cut -d' ' -f2)
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $activated_python_version)"
                 fi
+                export AUTO_UV_ENV_PYTHON_VERSION=$(python --version 2>&1 | cut -d' ' -f2)
             fi
         fi
     }
