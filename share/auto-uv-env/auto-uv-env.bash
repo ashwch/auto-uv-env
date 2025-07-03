@@ -8,11 +8,13 @@
 if command -v auto-uv-env >/dev/null 2>&1; then
     # Function to check and activate UV environments
     auto_uv_env() {
-        local state_file="/tmp/auto-uv-env.$$.state"
+        # Generate a unique but predictable state file path
+        local state_file="/tmp/auto-uv-env.$.$RANDOM.state"
 
-        # Get state from auto-uv-env
-        if ! auto-uv-env --check-safe "$PWD" > "$state_file" 2>&1; then
-            return 0  # UV not available or other error
+        # Get state from auto-uv-env, passing state file path
+        if ! auto-uv-env --check-safe "$PWD" "$state_file" 2>&1; then
+            rm -f "$state_file" # Clean up on error
+            return 0
         fi
 
         # Process state file
