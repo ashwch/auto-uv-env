@@ -1,3 +1,4 @@
+#!/usr/bin/env zsh
 # auto-uv-env.zsh - ZSH integration for auto-uv-env
 # https://github.com/ashwch/auto-uv-env
 #
@@ -78,7 +79,8 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                     activated_python_version=$(python --version 2>&1 | cut -d' ' -f2)
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $activated_python_version)"
                 fi
-                export AUTO_UV_ENV_PYTHON_VERSION=$(python --version 2>&1 | cut -d' ' -f2)
+                local activated_python_version_export=$(python --version 2>&1 | cut -d' ' -f2)
+                export AUTO_UV_ENV_PYTHON_VERSION="$activated_python_version_export"
             fi
         fi
     }
