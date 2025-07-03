@@ -116,6 +116,17 @@ auto-uv-env is designed to be fast:
 - **Python projects**: <5ms for activation check
 - **First-time setup**: 1-5 seconds (UV creates the environment)
 
+## Integration with Other Tools
+
+### Disabling in Specific Directories
+
+If you need to disable auto-uv-env in specific directories (e.g., when using direnv), create a `.auto-uv-env-ignore` file:
+
+```bash
+# Disable auto-uv-env in this directory
+touch .auto-uv-env-ignore
+```
+
 ## Comparison
 
 | Feature | auto-uv-env | direnv | pyenv-virtualenv |
@@ -128,7 +139,127 @@ auto-uv-env is designed to be fast:
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please follow these steps to contribute:
+
+### Prerequisites
+
+- [UV](https://github.com/astral-sh/uv) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Git
+- A shell (Zsh, Bash, or Fish)
+
+### Development Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/ashwch/auto-uv-env.git
+   cd auto-uv-env
+   ```
+
+2. **Install development dependencies**
+   ```bash
+   uv tool install pre-commit
+   ```
+
+3. **Set up pre-commit hooks**
+   ```bash
+   uv tool run pre-commit install
+   ```
+
+### Development Workflow
+
+1. **Make your changes** to the relevant files:
+   - `auto-uv-env` - Main bash script
+   - `share/auto-uv-env/` - Shell integration files
+   - `test/` - Test files
+
+2. **Run tests**
+   ```bash
+   ./test/test.sh
+   ```
+
+3. **Check code quality** (runs automatically via pre-commit)
+   ```bash
+   uv tool run pre-commit run --all-files
+   ```
+
+4. **Test manually**
+   ```bash
+   # Make script executable
+   chmod +x auto-uv-env
+   
+   # Test commands
+   ./auto-uv-env --help
+   ./auto-uv-env --version
+   ./auto-uv-env --check
+   
+   # Test in a Python project
+   cd /path/to/python/project
+   ./auto-uv-env --check
+   ```
+
+### Pre-commit Hooks
+
+The project uses comprehensive pre-commit hooks that automatically run:
+
+- **Code Quality**: shellcheck for shell script linting
+- **Security**: detect-secrets for credential scanning
+- **Formatting**: beautysh for shell script formatting
+- **Testing**: Run the test suite before push
+- **Validation**: Syntax checks for all shell integrations
+- **Project Checks**: Version consistency, TODO detection
+
+### Testing
+
+Run the test suite to ensure everything works:
+
+```bash
+./test/test.sh
+```
+
+For security testing:
+```bash
+./test/test-security.sh
+```
+
+### Homebrew Formula Testing
+
+If modifying the Homebrew formula:
+
+```bash
+# Test locally
+brew tap-new local/test
+cp homebrew/auto-uv-env.rb $(brew --repository)/Library/Taps/local/homebrew-test/Formula/
+brew install --build-from-source local/test/auto-uv-env
+brew test local/test/auto-uv-env
+```
+
+### Code Style
+
+- Use 4-space indentation for shell scripts
+- Follow existing patterns and conventions
+- Add comments for complex logic
+- Ensure all scripts have proper shebangs
+- Use shellcheck-compliant code
+
+### Pull Request Guidelines
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes following the development workflow
+4. Ensure all tests pass and pre-commit hooks succeed
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Issue Reporting
+
+When reporting issues, please include:
+- Operating system and shell type
+- UV version (`uv --version`)
+- auto-uv-env version (`auto-uv-env --version`)
+- Steps to reproduce
+- Expected vs actual behavior
+- Relevant log output
 
 ## License
 

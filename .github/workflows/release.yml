@@ -13,13 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Create Release Archive
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           tar czf auto-uv-env-${VERSION}.tar.gz --exclude='.git*' --exclude='.github' .
           sha256sum auto-uv-env-${VERSION}.tar.gz > auto-uv-env-${VERSION}.tar.gz.sha256
-      
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -28,16 +28,16 @@ jobs:
             auto-uv-env-*.tar.gz.sha256
           body: |
             ## Installation
-            
+
             ### Using Homebrew
             ```bash
             brew tap ashwch/tap
             brew install auto-uv-env
             ```
-            
+
             ### Manual Installation
             See [README](https://github.com/ashwch/auto-uv-env#manual-installation) for manual installation instructions.
-            
+
             ## What's Changed
             See [CHANGELOG](https://github.com/ashwch/auto-uv-env/blob/main/CHANGELOG.md) for details.
         env:

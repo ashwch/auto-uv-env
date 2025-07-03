@@ -8,13 +8,77 @@
 if command -v auto-uv-env >/dev/null 2>&1; then
     # Function to check and activate UV environments
     auto_uv_env() {
-        eval "$(auto-uv-env --check "$PWD")"
+        local state_file="/tmp/auto-uv-env.$$.state"
+
+        # Get state from auto-uv-env
+        if ! auto-uv-env --check-safe "$PWD" > /dev/null 2>&1; then
+            return 0  # UV not available or other error
+        fi
+
+        # Process state file
+        if [[ -f "$state_file" ]]; then
+            local create_venv="" python_version="" msg_setup="" activate_path="" deactivate=""
+
+            # Parse state file
+            while IFS='=' read -r key value; do
+                case "$key" in
+                    CREATE_VENV) create_venv="$value" ;;
+                    PYTHON_VERSION) python_version="$value" ;;
+                    MSG_SETUP) msg_setup="$value" ;;
+                    ACTIVATE) activate_path="$value" ;;
+                    DEACTIVATE) deactivate="$value" ;;
+                esac
+            done < "$state_file"
+            rm -f "$state_file"
+
+            # Handle deactivation
+            if [[ -n "$deactivate" ]]; then
+                if command -v deactivate >/dev/null 2>&1; then
+                    deactivate
+                fi
+                [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
+                return 0
+            fi
+
+            # Handle venv creation
+            if [[ -n "$create_venv" ]]; then
+                [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && [[ -n "$msg_setup" ]] && echo -e "\033[0;34m$msg_setup\033[0m"
+
+                if [[ -n "$python_version" ]]; then
+                    # Try specific Python version first
+                    if ! uv python install "$python_version" 2>/dev/null; then
+                        [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;34m🐍\033[0m Python $python_version not available, using default"
+                    fi
+                    if ! uv venv --python "$python_version" 2>/dev/null; then
+                        if ! uv venv 2>/dev/null; then
+                            echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
+                            return 1
+                        fi
+                    fi
+                else
+                    if ! uv venv 2>/dev/null; then
+                        echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
+                        return 1
+                    fi
+                fi
+                [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;32m✅\033[0m Virtual environment created"
+            fi
+
+            # Handle activation
+            if [[ -n "$activate_path" ]] && [[ -f "$activate_path/bin/activate" ]]; then
+                source "$activate_path/bin/activate"
+                if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
+                    local python_version=$(python --version 2>&1 | cut -d' ' -f2)
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                fi
+            fi
+        fi
     }
-    
+
     # Hook into directory changes
     autoload -U add-zsh-hook
     add-zsh-hook chpwd auto_uv_env
-    
+
     # Run on shell startup if in a Python project
     auto_uv_env
 else

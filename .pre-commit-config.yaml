@@ -1,0 +1,98 @@
+# Pre-commit hooks for auto-uv-env
+# Install with: pip install pre-commit && pre-commit install
+
+repos:
+  # Basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '^.*\.(md|txt)$'
+      - id: end-of-file-fixer
+        exclude: '^.*\.(md|txt)$'
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Shell script linting with shellcheck
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: [
+          '--severity=error',
+          '--shell=bash',
+          '--external-sources',
+          '--check-sourced',
+        ]
+        files: '\.(sh|bash)$|^auto-uv-env$'
+        exclude: '^\.git/'
+
+  # Security scanning
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '^\.git/|^test/.*\.sh$'
+
+
+  # Local hooks for project-specific checks
+  - repo: local
+    hooks:
+      # Run our test suite
+      - id: run-tests
+        name: Run auto-uv-env tests
+        entry: ./test/test.sh
+        language: script
+        pass_filenames: false
+        stages: [pre-push]
+        verbose: true
+
+      # Check for TODO/FIXME comments in main script
+      - id: check-todos
+        name: Check for unresolved TODOs
+        entry: bash -c 'if grep -n "TODO\|FIXME\|HACK" auto-uv-env; then echo "Please resolve TODOs before committing"; exit 1; fi'
+        language: system
+        files: '^auto-uv-env$'
+        pass_filenames: false
+
+      # Validate shell integration syntax
+      - id: validate-shell-integrations
+        name: Validate shell integration syntax
+        entry: bash -c 'for file in share/auto-uv-env/*.{bash,zsh}; do bash -n "$file" || exit 1; done'
+        language: system
+        files: '^share/auto-uv-env/.*\.(bash|zsh)$'
+        pass_filenames: false
+
+      # Check Fish shell syntax
+      - id: validate-fish-syntax
+        name: Validate Fish shell syntax
+        entry: bash -c 'if command -v fish >/dev/null; then fish -n share/auto-uv-env/auto-uv-env.fish; else echo "Fish not available, skipping syntax check"; fi'
+        language: system
+        files: '^share/auto-uv-env/.*\.fish$'
+        pass_filenames: false
+
+      # Security check for dangerous patterns
+      - id: security-patterns
+        name: Check for dangerous security patterns
+        entry: bash -c 'if grep -n "eval.*\$[^_]" auto-uv-env share/auto-uv-env/*; then echo "Dangerous eval pattern found"; exit 1; fi'
+        language: system
+        files: '^(auto-uv-env|share/auto-uv-env/.*)$'
+        pass_filenames: false
+
+      # Validate version consistency across all files
+      - id: version-consistency
+        name: Check version consistency across all files
+        entry: ./scripts/check-version-consistency.sh
+        language: script
+        files: '^(auto-uv-env|CHANGELOG.md|pyproject.toml|homebrew/auto-uv-env.rb)$'
+        pass_filenames: false

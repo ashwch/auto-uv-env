@@ -10,7 +10,7 @@ class AutoUvEnv < Formula
 
   def install
     bin.install "auto-uv-env"
-    
+
     # Install shell integration files
     (share/"auto-uv-env").install Dir["share/auto-uv-env/*"]
   end

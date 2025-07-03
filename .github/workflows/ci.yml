@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  lint-and-security:
+    name: Lint and Security Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install UV
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Add UV to PATH
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install pre-commit
+      run: pip install pre-commit
+
+    - name: Cache pre-commit
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+    - name: Run pre-commit
+      run: pre-commit run --all-files
+
+    - name: Run shellcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+        shellcheck auto-uv-env
+        shellcheck share/auto-uv-env/*.bash share/auto-uv-env/*.zsh
+
+    - name: Security scan with Semgrep
+      run: |
+        pip install semgrep
+        semgrep --config=auto --error --verbose .
+
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install UV
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Add UV to PATH
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Make scripts executable
+      run: |
+        chmod +x auto-uv-env
+        chmod +x test/test.sh
+        chmod +x test/test-security.sh
+        chmod +x test/test-shell-integrations.sh
+
+    - name: Run comprehensive tests
+      run: ./test/test.sh
+
+    - name: Run security tests
+      run: ./test/test-security.sh
+
+    - name: Run shell integration tests
+      run: ./test/test-shell-integrations.sh
+
+    - name: Test shell integrations syntax
+      run: |
+        # Test bash integration
+        bash -n share/auto-uv-env/auto-uv-env.bash
+
+        # Test zsh integration
+        if command -v zsh >/dev/null; then
+          zsh -n share/auto-uv-env/auto-uv-env.zsh
+        fi
+
+        # Test fish integration (if available)
+        if command -v fish >/dev/null; then
+          fish -n share/auto-uv-env/auto-uv-env.fish
+        fi
+
+  homebrew-test:
+    name: Test Homebrew Formula
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Test Homebrew formula syntax
+      run: |
+        brew tap homebrew/core
+        brew audit --strict homebrew/auto-uv-env.rb
+
+  release-check:
+    name: Release Preparation Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check version consistency
+      run: |
+        # Extract version from main script
+        VERSION=$(grep "VERSION=" auto-uv-env | cut -d"=" -f2 | tr -d '"')
+        echo "Found version: $VERSION"
+
+        # Check if version exists in CHANGELOG
+        if ! grep -q "$VERSION" CHANGELOG.md; then
+          echo "Error: Version $VERSION not found in CHANGELOG.md"
+          exit 1
+        fi
+
+        # Check if version exists in Homebrew formula
+        if ! grep -q "$VERSION" homebrew/auto-uv-env.rb; then
+          echo "Error: Version $VERSION not found in Homebrew formula"
+          exit 1
+        fi
+
+    - name: Check for placeholder values
+      run: |
+        if grep -q "PLACEHOLDER" homebrew/auto-uv-env.rb; then
+          echo "Error: Placeholder values found in Homebrew formula"
+          exit 1
+        fi
+
+  performance-test:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install UV
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Add UV to PATH
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Make script executable
+      run: chmod +x auto-uv-env
+
+    - name: Performance test - non-Python directory
+      run: |
+        mkdir -p /tmp/non-python
+        cd /tmp/non-python
+        time timeout 1s bash -c 'for i in {1..100}; do $GITHUB_WORKSPACE/auto-uv-env --check-safe >/dev/null 2>&1; done'
+
+    - name: Performance test - Python directory
+      run: |
+        mkdir -p /tmp/python-project
+        cd /tmp/python-project
+        echo '[project]' > pyproject.toml
+        echo 'name = "test"' >> pyproject.toml
+        echo 'requires-python = ">=3.11"' >> pyproject.toml
+        time timeout 5s bash -c 'for i in {1..10}; do $GITHUB_WORKSPACE/auto-uv-env --check-safe >/dev/null 2>&1 || true; done'

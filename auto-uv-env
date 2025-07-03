@@ -8,8 +8,8 @@
 set -euo pipefail
 
 VERSION="1.0.0"
-VENV_DIR="${AUTO_UV_ENV_VENV_NAME:-.venv}"
 QUIET_MODE="${AUTO_UV_ENV_QUIET:-0}"
+DEBUG_MODE="${AUTO_UV_ENV_DEBUG:-0}"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -33,71 +33,300 @@ print_error() {
     echo -e "${RED}❌${NC} $1" >&2
 }
 
+print_debug() {
+    [[ "$DEBUG_MODE" == "1" ]] || return
+    echo -e "${YELLOW}🔍${NC} DEBUG: $1" >&2
+}
+
 print_deactivate() {
     [[ "$QUIET_MODE" == "1" ]] && return
     echo -e "${YELLOW}⬇️${NC}  $1"
 }
 
-# Check if UV is available
+# Validate and set venv directory name
+validate_venv_name() {
+    local name="${AUTO_UV_ENV_VENV_NAME:-.venv}"
+    # Ensure no path separators or parent directory references
+    if [[ "$name" =~ [/\\] ]] || [[ "$name" =~ \.\. ]]; then
+        print_error "Invalid venv name: $name (cannot contain path separators or ..)"
+        exit 1
+    fi
+    echo "$name"
+}
+
+VENV_DIR="$(validate_venv_name)"
+
+# Check if UV is available with helpful suggestions
 check_uv() {
     if ! command -v uv >/dev/null 2>&1; then
-        echo "print_error 'auto-uv-env: UV not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh'"
+        print_error 'auto-uv-env: UV not found.'
+        echo "Install options:" >&2
+        echo "  • curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
+        echo "  • brew install uv" >&2
+        echo "  • pip install uv" >&2
         exit 1
+    fi
+
+    # Check UV version for compatibility warnings
+    local uv_version
+    uv_version=$(uv --version 2>/dev/null | cut -d' ' -f2)
+    if [[ -n "$uv_version" ]]; then
+        # Warn about very old UV versions (< 0.1.0 is ancient)
+        if [[ "$uv_version" < "0.1.0" ]]; then
+            print_error "Warning: UV version $uv_version is very old. Consider upgrading."
+        fi
     fi
 }
 
-# Parse Python version from pyproject.toml
+# Validate Python version format
+validate_python_version() {
+    local version="$1"
+    if [[ -z "$version" ]]; then
+        return 1
+    fi
+    # Strict validation: only allow X.Y or X.Y.Z format
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+        print_error "Invalid Python version format: $version"
+        return 1
+    fi
+    echo "$version"
+}
+
+# Parse Python version from pyproject.toml with robust error handling
 get_python_version() {
     local project_file="$1/pyproject.toml"
     [[ -f "$project_file" ]] || return 1
-    
+
+    # Validate file is readable
+    if [[ ! -r "$project_file" ]]; then
+        print_error "Cannot read $project_file (permission denied)"
+        return 1
+    fi
+
     # Try different patterns for Python version specification
     local version
-    version=$(grep -E "requires-python|python_requires" "$project_file" 2>/dev/null | 
-              sed -E 's/.*[">]=?([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/' | 
+    version=$(grep -E "requires-python|python_requires" "$project_file" 2>/dev/null |
+              sed -E 's/.*[">]=?([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/' |
               head -1)
-    
-    echo "$version"
+
+    # Handle empty/malformed file
+    if [[ -z "$version" ]]; then
+        # Try alternative patterns
+        version=$(python -c "import tomllib; print(tomllib.load(open('$project_file', 'rb')).get('project', {}).get('requires-python', '').replace('>=', '').replace('~=', '').strip())" 2>/dev/null || echo "")
+    fi
+
+    # Validate the extracted version
+    if validate_python_version "$version" >/dev/null 2>&1; then
+        echo "$version"
+    else
+        return 1
+    fi
+}
+
+# Generate state file path
+get_state_file() {
+    echo "/tmp/auto-uv-env.$$.$RANDOM.state"
 }
 
 # Main directory check function
 check_directory() {
     local dir="${1:-$PWD}"
-    
-    # Quick exit if no pyproject.toml
+    local state_file="${2:-}"
+
+    # Always require state file for security and consistency
+    if [[ -z "$state_file" ]]; then
+        print_error "Internal error: state file required"
+        exit 1
+    fi
+
+    print_debug "Checking directory: $dir"
+    print_debug "State file: $state_file"
+    print_debug "VENV_DIR: $VENV_DIR"
+
+    # Quick exit if disabled or no pyproject.toml
+    if [[ -f "$dir/.auto-uv-env-ignore" ]]; then
+        print_debug "auto-uv-env disabled in $dir (.auto-uv-env-ignore found)"
+        return 0
+    fi
+
     if [[ ! -f "$dir/pyproject.toml" ]]; then
+        print_debug "No pyproject.toml found in $dir"
         # Check if we need to deactivate
         if [[ -n "${VIRTUAL_ENV:-}" ]]; then
-            echo "deactivate 2>/dev/null || true"
-            echo "print_deactivate 'Deactivated UV environment'"
+            print_debug "Deactivating current environment: $VIRTUAL_ENV"
+            echo "DEACTIVATE=1" > "$state_file"
         fi
         return 0
     fi
-    
+
     local venv_path="$dir/$VENV_DIR"
     local py_version
-    py_version=$(get_python_version "$dir")
-    
+    py_version=$(get_python_version "$dir" 2>/dev/null || echo "")
+
+    print_debug "Virtual environment path: $venv_path"
+    print_debug "Detected Python version: ${py_version:-none}"
+
     # Create venv if needed
     if [[ ! -d "$venv_path" ]]; then
+        echo "CREATE_VENV=1" >> "$state_file"
         if [[ -n "$py_version" ]]; then
-            echo "print_status 'Setting up Python $py_version with UV...'"
-            echo "uv python install '$py_version' 2>/dev/null || true"
-            echo "uv venv --python '$py_version' || uv venv"
+            echo "PYTHON_VERSION=$py_version" >> "$state_file"
+            echo "MSG_SETUP=🐍 Setting up Python $py_version with UV..." >> "$state_file"
         else
-            echo "print_status 'Creating UV environment...'"
-            echo "uv venv"
+            echo "MSG_SETUP=🐍 Creating UV environment..." >> "$state_file"
         fi
-        echo "print_success 'Virtual environment created'"
     fi
-    
+
     # Activate if needed
     if [[ -f "$venv_path/bin/activate" ]] && [[ "${VIRTUAL_ENV:-}" != "$venv_path" ]]; then
-        echo "source '$venv_path/bin/activate'"
-        if [[ "$QUIET_MODE" != "1" ]]; then
-            echo "python_version=\$(python --version 2>&1 | cut -d' ' -f2)"
-            echo "echo -e '${GREEN}🚀${NC} UV environment activated (Python \$python_version)'"
+        echo "ACTIVATE=$venv_path" >> "$state_file"
+    elif [[ ! -f "$venv_path/bin/activate" ]] && [[ ! -d "$venv_path" ]]; then
+        # Venv creation is needed and will be handled by shell integration
+        :
+    fi
+}
+
+# Diagnose environment and configuration
+diagnose_environment() {
+    local dir="${1:-$PWD}"
+    echo "auto-uv-env diagnostic report"
+    echo "============================"
+    echo "Version: $VERSION"
+    echo "Directory: $dir"
+    echo "Timestamp: $(date)"
+    echo ""
+
+    # Check UV installation
+    echo "UV Status:"
+    if command -v uv >/dev/null 2>&1; then
+        echo "✅ UV found: $(which uv)"
+        echo "ℹ️ UV version: $(uv --version 2>/dev/null || echo 'unknown')"
+    else
+        echo "❌ UV not found"
+    fi
+    echo ""
+
+    # Check Python installation
+    echo "Python Status:"
+    if command -v python >/dev/null 2>&1; then
+        echo "✅ Python found: $(which python)"
+        echo "ℹ️ Python version: $(python --version 2>/dev/null || echo 'unknown')"
+    else
+        echo "❌ Python not found"
+    fi
+    echo ""
+
+    # Check project structure
+    echo "Project Structure:"
+    if [[ -f "$dir/pyproject.toml" ]]; then
+        echo "✅ pyproject.toml found"
+        local py_version
+        py_version=$(get_python_version "$dir" 2>/dev/null || echo "")
+        if [[ -n "$py_version" ]]; then
+            echo "ℹ️ Required Python: $py_version"
+        else
+            echo "⚠️  No requires-python found in pyproject.toml"
         fi
+    else
+        echo "❌ No pyproject.toml found"
+    fi
+
+    local venv_path="$dir/$VENV_DIR"
+    if [[ -d "$venv_path" ]]; then
+        echo "✅ Virtual environment exists: $venv_path"
+        if [[ -f "$venv_path/bin/activate" ]]; then
+            echo "✅ Activation script found"
+        else
+            echo "❌ Activation script missing"
+        fi
+    else
+        echo "ℹ️ Virtual environment not created yet: $venv_path"
+    fi
+    echo ""
+
+    # Check environment variables
+    echo "Environment Variables:"
+    echo "ℹ️ AUTO_UV_ENV_QUIET: ${AUTO_UV_ENV_QUIET:-unset}"
+    echo "ℹ️ AUTO_UV_ENV_DEBUG: ${AUTO_UV_ENV_DEBUG:-unset}"
+    echo "ℹ️ AUTO_UV_ENV_VENV_NAME: ${AUTO_UV_ENV_VENV_NAME:-unset (using .venv)}"
+    echo "ℹ️ VIRTUAL_ENV: ${VIRTUAL_ENV:-unset}"
+    echo ""
+
+    # Check shell integration
+    echo "Shell Integration:"
+    echo "ℹ️ Current shell: ${SHELL:-unknown}"
+
+    # Check for common issues
+    echo "Common Issues Check:"
+    if [[ ! -w "$dir" ]]; then
+        echo "⚠️  Directory not writable: $dir"
+    fi
+
+    if [[ -f "$dir/pyproject.toml" ]] && [[ ! -r "$dir/pyproject.toml" ]]; then
+        echo "⚠️  pyproject.toml not readable"
+    fi
+
+    local temp_test="/tmp/auto-uv-env-test.$$"
+    if ! touch "$temp_test" 2>/dev/null; then
+        echo "⚠️  Cannot write to /tmp (state files will fail)"
+    else
+        rm -f "$temp_test"
+    fi
+
+    echo "
+Diagnostic complete."
+}
+
+# Validate version consistency across all files
+validate_versions() {
+    local script_version="$VERSION"
+    local errors=0
+
+    echo "Validating version consistency..."
+    echo "Script version: $script_version"
+
+    # Check pyproject.toml
+    if [[ -f "pyproject.toml" ]]; then
+        if grep -q "version = \"$script_version\"" pyproject.toml; then
+            echo "✅ pyproject.toml version matches"
+        else
+            echo "❌ pyproject.toml version mismatch"
+            errors=$((errors + 1))
+        fi
+    else
+        echo "⚠️  pyproject.toml not found"
+    fi
+
+    # Check CHANGELOG.md
+    if [[ -f "CHANGELOG.md" ]]; then
+        if grep -q "\[$script_version\]" CHANGELOG.md; then
+            echo "✅ CHANGELOG.md contains version"
+        else
+            echo "❌ CHANGELOG.md missing version [$script_version]"
+            errors=$((errors + 1))
+        fi
+    else
+        echo "⚠️  CHANGELOG.md not found"
+    fi
+
+    # Check Homebrew formula
+    if [[ -f "homebrew/auto-uv-env.rb" ]]; then
+        if grep -q "v$script_version" homebrew/auto-uv-env.rb; then
+            echo "✅ Homebrew formula version matches"
+        else
+            echo "❌ Homebrew formula version mismatch"
+            errors=$((errors + 1))
+        fi
+    else
+        echo "⚠️  Homebrew formula not found"
+    fi
+
+    if [[ $errors -eq 0 ]]; then
+        echo "🎉 All version checks passed!"
+        return 0
+    else
+        echo "💥 $errors version inconsistencies found"
+        return 1
     fi
 }
 
@@ -111,40 +340,46 @@ Author: Ashwini Chaudhary (https://github.com/ashwch)
 
 USAGE:
     auto-uv-env [OPTIONS]
-    auto-uv-env --check [DIRECTORY]
+    auto-uv-env --check-safe [DIRECTORY]
 
 OPTIONS:
-    --check [DIR]    Check and activate UV environment in directory
-    --version, -v    Show version information
-    --help, -h       Show this help message
+    --check-safe [DIR]  Check and activate UV environment in directory (safe mode)
+    --validate          Validate version consistency across all project files
+    --diagnose [DIR]    Show diagnostic information for debugging
+    --version, -v       Show version information
+    --help, -h          Show this help message
 
 SHELL INTEGRATION:
     For zsh (~/.zshrc):
         source \$(brew --prefix)/share/auto-uv-env/auto-uv-env.zsh
-    
+
     For bash (~/.bashrc):
         source \$(brew --prefix)/share/auto-uv-env/auto-uv-env.bash
-    
+
     For fish (~/.config/fish/config.fish):
         source \$(brew --prefix)/share/auto-uv-env/auto-uv-env.fish
 
 ENVIRONMENT VARIABLES:
     AUTO_UV_ENV_QUIET=1        Suppress status messages
+    AUTO_UV_ENV_DEBUG=1        Enable debug output
     AUTO_UV_ENV_VENV_NAME=dir  Use custom venv directory (default: .venv)
+
+DISABLING:
+    Create .auto-uv-env-ignore file in any directory to disable auto-uv-env
 
 REQUIREMENTS:
     - UV (https://github.com/astral-sh/uv)
     - pyproject.toml in project directory
 
 EXAMPLES:
-    # Check current directory
-    auto-uv-env --check
-    
-    # Check specific directory
-    auto-uv-env --check /path/to/project
-    
-    # Use with quiet mode
-    AUTO_UV_ENV_QUIET=1 auto-uv-env --check
+    # Diagnose current directory
+    auto-uv-env --diagnose
+
+    # Validate version consistency
+    auto-uv-env --validate
+
+    # Use with debug mode
+    AUTO_UV_ENV_DEBUG=1 auto-uv-env --diagnose
 
 For more information, visit: https://github.com/ashwch/auto-uv-env
 EOF
@@ -159,17 +394,36 @@ case "${1:-}" in
         exit 0
         ;;
     --check)
+        # Legacy mode - deprecated, use --check-safe instead
+        print_error "Deprecated: --check mode removed for security. Use shell integration."
+        exit 1
+        ;;
+    --check-safe)
+        # Safe mode using state file instead of eval
         check_uv
-        check_directory "${2:-$PWD}"
+        state_file="$(get_state_file)"
+        check_directory "${2:-$PWD}" "$state_file"
+        if [[ -f "$state_file" ]]; then
+            cat "$state_file"
+            rm -f "$state_file"
+        fi
+        ;;
+    --validate)
+        validate_versions
+        exit $?
+        ;;
+    --diagnose)
+        diagnose_environment "${2:-$PWD}"
+        exit $?
         ;;
     --help|-h)
         show_help
         exit 0
         ;;
     "")
-        # No arguments - check current directory
-        check_uv
-        check_directory "$PWD"
+        # No arguments - show help
+        show_help
+        exit 0
         ;;
     *)
         echo "Unknown option: $1"
