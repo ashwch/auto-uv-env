@@ -25,13 +25,8 @@ else
     echo "✅ pyproject.toml contains version $version"
 fi
 
-# Check Homebrew formula
-if ! grep -q "v$version" homebrew/auto-uv-env.rb; then
-    echo "❌ Version v$version not found in Homebrew formula"
-    errors=$((errors + 1))
-else
-    echo "✅ Homebrew formula contains version v$version"
-fi
+# Check Homebrew formula (now in separate repository)
+echo "ℹ️  Homebrew formula is maintained in ashwch/homebrew-tap repository"
 
 if [[ $errors -eq 0 ]]; then
     echo "🎉 Version consistency check passed for $version"
