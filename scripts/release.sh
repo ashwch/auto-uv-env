@@ -167,8 +167,10 @@ update_version_files() {
     sed -i.bak "s/^version = \".*\"/version = \"$VERSION\"/" "$PROJECT_DIR/pyproject.toml"
     rm -f "$PROJECT_DIR/pyproject.toml.bak"
 
-    # Update CHANGELOG.md (add new section at top)
-    local changelog_entry="## [$VERSION] - $(date +%Y-%m-%d)
+    # Update CHANGELOG.md if entry doesn't exist
+    if [[ -f "$PROJECT_DIR/CHANGELOG.md" ]] && ! grep -q "## [$VERSION]" "$PROJECT_DIR/CHANGELOG.md"; then
+        print_step "Adding new entry to CHANGELOG.md for v$VERSION"
+        local changelog_entry="## [$VERSION] - $(date +%Y-%m-%d)
 
 ### Added
 -
@@ -180,16 +182,15 @@ update_version_files() {
 -
 
 "
-
-    # Insert after the header but before existing entries
-    if [[ -f "$PROJECT_DIR/CHANGELOG.md" ]]; then
-        # Create temp file with new entry
+        # Insert after the header but before existing entries
         {
             head -7 "$PROJECT_DIR/CHANGELOG.md"  # Keep header
             echo "$changelog_entry"
             tail -n +8 "$PROJECT_DIR/CHANGELOG.md"  # Rest of file
         } > "$PROJECT_DIR/CHANGELOG.md.tmp"
         mv "$PROJECT_DIR/CHANGELOG.md.tmp" "$PROJECT_DIR/CHANGELOG.md"
+    else
+        print_warning "CHANGELOG.md entry for v$VERSION already exists. Skipping."
     fi
 
     print_success "Version updated in all files"
