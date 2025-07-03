@@ -158,6 +158,52 @@ EOF
     return $exit_code
 }
 
+# Test actual auto_uv_env function end-to-end
+test_integration_end_to_end() {
+    local temp_dir=$(mktemp -d)
+    cd "$temp_dir"
+    
+    # Create real pyproject.toml
+    cat > pyproject.toml << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.9"
+EOF
+
+    # Test the actual function
+    local result
+    result=$(bash -c "
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+        
+        # Use real auto-uv-env but mock UV
+        export PATH='$SCRIPT_DIR/../:\$PATH'
+        
+        # Mock UV to avoid actual creation
+        uv() { 
+            case \"\$1\" in
+                'venv') mkdir -p .venv/bin && touch .venv/bin/activate ;;
+                *) echo 'Mock UV: \$*' ;;
+            esac
+            return 0
+        }
+        
+        # Mock python for version check
+        python() { echo '3.9.0'; }
+        
+        # This calls the REAL auto_uv_env function
+        auto_uv_env 2>&1
+        
+        # Verify venv was created
+        if [[ -d '.venv' && -f '.venv/bin/activate' ]]; then
+            echo 'END_TO_END_SUCCESS'
+        fi
+    ")
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ "$result" == *"END_TO_END_SUCCESS"* ]]
+}
+
 # Test integration error handling
 test_integration_error_handling() {
     local temp_dir=$(mktemp -d)
@@ -242,6 +288,7 @@ run_test "ZSH integration syntax" test_zsh_syntax
 run_test "Fish integration syntax" test_fish_syntax
 run_test "Bash state file parsing" test_bash_state_parsing
 run_test "Fish state file parsing" test_fish_state_parsing
+run_test "Integration end-to-end" test_integration_end_to_end
 run_test "Integration error handling" test_integration_error_handling
 run_test "Deactivation logic" test_deactivation_logic
 run_test "State file cleanup" test_state_file_cleanup

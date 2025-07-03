@@ -11,7 +11,7 @@ if command -v auto-uv-env >/dev/null 2>&1
         set -l state_file "/tmp/auto-uv-env."(echo %self)".state"
 
         # Get state from auto-uv-env
-        if not auto-uv-env --check-safe $PWD > /dev/null 2>&1
+        if not auto-uv-env --check-safe $PWD > $state_file 2>&1
             return 0  # UV not available or other error
         end
 

@@ -47,7 +47,7 @@ print_deactivate() {
 validate_venv_name() {
     local name="${AUTO_UV_ENV_VENV_NAME:-.venv}"
     # Ensure no path separators or parent directory references
-    if [[ "$name" =~ [/\\] ]] || [[ "$name" =~ \.\. ]]; then
+    if [[ "$name" =~ [/\\] ]] || [[ "$name" == *".."* ]]; then
         print_error "Invalid venv name: $name (cannot contain path separators or ..)"
         exit 1
     fi
