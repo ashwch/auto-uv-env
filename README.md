@@ -69,6 +69,9 @@ cd my-python-project/
 # ✅ Virtual environment created
 # 🚀 UV environment activated (Python 3.11.5)
 
+# Your prompt might look like this (if configured to show Python version):
+# (3.11.5) my-python-project $ 
+
 cd ..
 # ⬇️  Deactivated UV environment
 ```
@@ -84,6 +87,7 @@ That's it! The virtual environment is automatically:
 
 - `AUTO_UV_ENV_QUIET=1` - Suppress all status messages
 - `AUTO_UV_ENV_VENV_NAME=.venv` - Custom virtual environment directory name (default: `.venv`)
+- `AUTO_UV_ENV_PYTHON_VERSION` - Contains the Python version of the currently activated virtual environment. Useful for prompt customization.
 
 ### Example pyproject.toml
 
