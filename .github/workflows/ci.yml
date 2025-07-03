@@ -111,8 +111,8 @@ jobs:
 
     - name: Test Homebrew formula syntax
       run: |
-        brew tap homebrew/core
-        brew audit --strict homebrew/auto-uv-env.rb
+        brew tap ashwch/tap
+        brew audit --strict auto-uv-env
 
   release-check:
     name: Release Preparation Check
