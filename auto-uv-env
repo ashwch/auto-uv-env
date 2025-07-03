@@ -34,7 +34,7 @@ print_error() {
 }
 
 print_debug() {
-    [[ "$DEBUG_MODE" == "1" ]] || return
+    [[ "$DEBUG_MODE" == "1" ]] || return 0
     echo -e "${YELLOW}🔍${NC} DEBUG: $1" >&2
 }
 
