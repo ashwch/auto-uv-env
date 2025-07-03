@@ -162,7 +162,7 @@ EOF
 test_integration_end_to_end() {
     local temp_dir=$(mktemp -d)
     cd "$temp_dir"
-    
+
     # Create real pyproject.toml
     cat > pyproject.toml << 'EOF'
 [project]
@@ -174,25 +174,25 @@ EOF
     local result
     result=$(bash -c "
         source '$INTEGRATION_DIR/auto-uv-env.bash'
-        
+
         # Use real auto-uv-env but mock UV
         export PATH='$SCRIPT_DIR/../:\$PATH'
-        
+
         # Mock UV to avoid actual creation
-        uv() { 
+        uv() {
             case \"\$1\" in
                 'venv') mkdir -p .venv/bin && touch .venv/bin/activate ;;
                 *) echo 'Mock UV: \$*' ;;
             esac
             return 0
         }
-        
+
         # Mock python for version check
         python() { echo '3.9.0'; }
-        
+
         # This calls the REAL auto_uv_env function
         auto_uv_env 2>&1
-        
+
         # Verify venv was created
         if [[ -d '.venv' && -f '.venv/bin/activate' ]]; then
             echo 'END_TO_END_SUCCESS'
