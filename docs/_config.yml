@@ -1,0 +1,24 @@
+title: auto-uv-env
+description: Automatic UV-based Python virtual environment management
+theme: minima
+url: https://ashwch.github.io
+baseurl: /auto-uv-env
+
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+
+markdown: kramdown
+highlighter: rouge
+
+header_pages:
+  - index.md
+  - installation.md
+  - usage.md
+  - contributing.md
+
+exclude:
+  - README.md
+  - LICENSE
+  - Gemfile
+  - Gemfile.lock
