@@ -13,8 +13,8 @@ DEBUG_MODE="${AUTO_UV_ENV_DEBUG:-0}"
 
 # Cache command locations for performance
 # These are set once and reused to avoid repeated lookups
-: ${_AUTO_UV_ENV_UV_PATH:=$(command -v uv 2>/dev/null)}
-: ${_AUTO_UV_ENV_PYTHON_PATH:=$(command -v python 2>/dev/null)}
+: "${_AUTO_UV_ENV_UV_PATH:=$(command -v uv 2>/dev/null)}"
+: "${_AUTO_UV_ENV_PYTHON_PATH:=$(command -v python 2>/dev/null)}"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -75,9 +75,9 @@ check_uv() {
 
     # Check UV version for compatibility warnings (only in debug mode to save time)
     if [[ "$DEBUG_MODE" == "1" ]]; then
-        local uv_version
+        local uv_version uv_full_version
         # Use shell parameter expansion instead of cut for performance
-        local uv_full_version=$($_AUTO_UV_ENV_UV_PATH --version 2>/dev/null)
+        uv_full_version=$($_AUTO_UV_ENV_UV_PATH --version 2>/dev/null)
         uv_version="${uv_full_version#uv }"
         if [[ -n "$uv_version" ]]; then
             # Warn about very old UV versions (< 0.1.0 is ancient)
