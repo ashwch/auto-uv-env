@@ -5,6 +5,23 @@ All notable changes to auto-uv-env will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2025-07-04
+
+### Changed
+- Major performance optimization: shell startup overhead reduced from ~128ms to ~8.6ms (93% improvement)
+- Added fast-path optimizations for common scenarios (staying in same project, existing venv)
+- Skip Python version check in quiet mode (saves ~6ms per activation)
+
+### Fixed
+- Performance bottleneck from calling auto-uv-env script on every directory change
+- Removed obsolete package.yml workflow that was using deprecated GitHub Actions
+
+### Performance Improvements
+- Shell startup overhead: 8.6ms (normal mode), 1.6ms (quiet mode)
+- Per directory change: ~1.3ms (normal mode), ~0.4ms (quiet mode)
+- Direct venv activation bypasses script call entirely when possible
+
+
 ## [1.0.5] - 2025-07-03
 
 ### Added
