@@ -31,7 +31,7 @@ brew install auto-uv-env
 
 ### Option 2: Install Script (Universal)
 
-Works on Ubuntu, Debian, RHEL, Fedora, CentOS, and more:
+Works on Ubuntu, Debian, RHEL, Fedora, CentOS, Rocky Linux, AlmaLinux, and more:
 
 ```bash
 # Install latest version
@@ -39,7 +39,17 @@ curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/inst
 
 # Install specific version
 curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- 1.0.4
+
+# Install with options
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- --help
 ```
+
+The install script will:
+- Detect your operating system
+- Build native packages (.deb or .rpm) when possible
+- Fall back to universal installation if needed
+- Set up shell integration automatically
+- Check for required dependencies
 
 ### Option 3: Manual Installation
 
@@ -59,22 +69,47 @@ sudo mkdir -p /usr/local/share/auto-uv-env
 sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
 ```
 
-### Option 4: Package Managers (Coming Soon)
+### Option 4: Linux Distribution Packages
 
-#### Ubuntu/Debian
+#### Ubuntu/Debian (.deb)
 
 ```bash
-# Download .deb from releases
+# Method 1: Build and install locally
+git clone https://github.com/ashwch/auto-uv-env.git
+cd auto-uv-env
+./scripts/build-deb.sh
+sudo apt install ./auto-uv-env_*.deb
+
+# Method 2: Download from releases (when available)
 wget https://github.com/ashwch/auto-uv-env/releases/latest/download/auto-uv-env_1.0.4_all.deb
-sudo dpkg -i auto-uv-env_1.0.4_all.deb
+sudo apt install ./auto-uv-env_1.0.4_all.deb
 ```
 
-#### RHEL/Fedora/CentOS
+#### RHEL/Fedora/CentOS/Rocky/AlmaLinux (.rpm)
 
 ```bash
-# Download .rpm from releases
+# Method 1: Build and install locally
+git clone https://github.com/ashwch/auto-uv-env.git
+cd auto-uv-env
+./scripts/build-rpm.sh
+sudo dnf install ./auto-uv-env-*.noarch.rpm  # Fedora
+sudo yum localinstall ./auto-uv-env-*.noarch.rpm  # RHEL/CentOS
+
+# Method 2: Download from releases (when available)
 wget https://github.com/ashwch/auto-uv-env/releases/latest/download/auto-uv-env-1.0.4-1.noarch.rpm
-sudo rpm -i auto-uv-env-1.0.4-1.noarch.rpm
+sudo dnf install ./auto-uv-env-1.0.4-1.noarch.rpm
+```
+
+#### Arch Linux (AUR)
+
+```bash
+# Using yay
+yay -S auto-uv-env
+
+# Using manual build
+git clone https://aur.archlinux.org/auto-uv-env.git
+cd auto-uv-env
+makepkg -si
 ```
 
 ### Option 5: Direct Download
@@ -195,15 +230,29 @@ sudo rm -rf /usr/local/share/auto-uv-env
 If you get "command not found" after installation:
 - Ensure `/usr/local/bin` is in your PATH
 - For Homebrew, ensure `$(brew --prefix)/bin` is in your PATH
+- For package installations, try `/usr/bin/auto-uv-env`
 
 ### UV not found
 
 If you get "UV not found" error:
 - Install UV: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - Ensure UV is in your PATH
+- Add `export PATH="$HOME/.cargo/bin:$PATH"` to your shell config
 
 ### Shell integration not working
 
 - Make sure you've reloaded your shell configuration
 - Check that the source path is correct for your installation method
 - Try running the command manually to see any error messages
+- For package installations, the integration files are in `/usr/share/auto-uv-env/`
+
+### Performance issues
+
+auto-uv-env is optimized for performance:
+- Non-Python directories: ~4ms overhead (fast-path optimization)
+- Python directories: ~50-100ms (includes environment checking)
+
+If experiencing slow shell startup:
+1. Ensure you have the latest version
+2. Check for conflicting shell plugins
+3. Report issues at https://github.com/ashwch/auto-uv-env/issues

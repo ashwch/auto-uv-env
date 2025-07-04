@@ -18,16 +18,27 @@ Automatic UV-based Python virtual environment management for your shell. No more
 - 📦 **pyproject.toml aware** - Reads Python version from `requires-python`
 - 🎯 **Zero configuration** - Works out of the box
 - 🐚 **Multi-shell support** - Works with Zsh, Bash, and Fish
-- ⚡ **Fast** - Adds <5ms to directory changes
+- ⚡ **Fast** - Adds <5ms to directory changes (optimized with fast-path)
 - 🧹 **Clean** - Automatically deactivates when leaving Python projects
 
 ## Quick Start
 
-### 1. Install with Homebrew
+### 1. Install auto-uv-env
 
+**macOS/Linux with Homebrew:**
 ```bash
 brew tap ashwch/tap
 brew install auto-uv-env
+```
+
+**Ubuntu/Debian:**
+```bash
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
+```
+
+**RHEL/Fedora:**
+```bash
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
 ```
 
 ### 2. Add to your shell
@@ -59,10 +70,31 @@ cd my-python-project/
 ## How It Works
 
 1. When you `cd` into a directory, auto-uv-env checks for `pyproject.toml`
-2. If found, it reads the `requires-python` field
-3. Uses UV to create a virtual environment with the correct Python version
-4. Activates the environment automatically
-5. When you leave the directory, it deactivates the environment
+2. If no `pyproject.toml` exists, it skips processing (fast-path optimization)
+3. If found, it reads the `requires-python` field
+4. Uses UV to create a virtual environment with the correct Python version
+5. Activates the environment automatically
+6. Tracks which directory activated the environment
+7. When you leave the project tree, it deactivates the environment
+8. Manual virtual environments are never deactivated
+
+## Features
+
+### 🚀 Performance Optimized
+- **Fast-path optimization**: Non-Python directories add only ~4ms overhead
+- **Smart caching**: Avoids redundant checks
+- **Minimal dependencies**: Pure shell implementation
+
+### 🎯 Intelligent Activation
+- **Project-aware**: Only activates in directories with `pyproject.toml`
+- **Version matching**: Respects `requires-python` from pyproject.toml
+- **Subdirectory support**: Stay activated in project subdirectories
+- **Manual venv protection**: Won't interfere with manually activated environments
+
+### 🛡️ Security First
+- **Path validation**: Prevents directory traversal attacks
+- **Command injection protection**: Safe handling of user input
+- **Ignore file support**: Use `.auto-uv-env-ignore` to disable in specific directories
 
 ## Requirements
 

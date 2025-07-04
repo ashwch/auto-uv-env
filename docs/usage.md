@@ -78,6 +78,14 @@ touch .auto-uv-env-ignore
 echo "Using direnv for this project" > .auto-uv-env-ignore
 ```
 
+### Working with Existing Virtual Environments
+
+auto-uv-env respects existing virtual environments:
+
+1. **Manual venvs are protected**: If you manually activate a venv, auto-uv-env won't deactivate it
+2. **Existing .venv is reused**: If `.venv` already exists, auto-uv-env will use it
+3. **State tracking**: Only deactivates environments it activated
+
 ## Command Line Interface
 
 ### Available Commands
@@ -191,17 +199,32 @@ python -m ipykernel install --user --name=myproject
 
 ### Performance Issues
 
-If directory changes are slow:
+auto-uv-env is highly optimized:
+- **Non-Python directories**: ~4ms overhead (fast-path)
+- **Python directories**: ~50-100ms (includes environment check)
 
-1. **Check for large directories**:
+If experiencing slow directory changes:
+
+1. **Verify you have the latest version**:
    ```bash
-   # auto-uv-env only checks current directory
-   ls -la
+   auto-uv-env --version  # Should be 1.0.4 or later
    ```
 
-2. **Use quiet mode**:
+2. **Check for shell conflicts**:
+   ```bash
+   # Temporarily disable other shell plugins
+   # Check if performance improves
+   ```
+
+3. **Use quiet mode** to reduce output overhead:
    ```bash
    export AUTO_UV_ENV_QUIET=1
+   ```
+
+4. **Report persistent issues**:
+   ```bash
+   auto-uv-env --diagnose > diagnostic.txt
+   # Share at: https://github.com/ashwch/auto-uv-env/issues
    ```
 
 ## Best Practices
@@ -210,6 +233,8 @@ If directory changes are slow:
 2. **Specify Python version** - Use `requires-python` for consistency
 3. **Commit .gitignore** - Add `.venv/` to your `.gitignore`
 4. **Use UV for packages** - `uv pip install` instead of `pip install`
+5. **Don't mix activation methods** - Let auto-uv-env handle activation
+6. **Use .auto-uv-env-ignore** - When using other virtual environment tools
 
 ## Examples
 

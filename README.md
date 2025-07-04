@@ -12,8 +12,11 @@ Automatic UV-based Python virtual environment management for your shell. No more
 - 📦 **pyproject.toml aware** - Reads Python version from `requires-python`
 - 🎯 **Zero configuration** - Works out of the box
 - 🐚 **Multi-shell support** - Works with Zsh, Bash, and Fish
-- ⚡ **Fast** - Adds <5ms to directory changes
-- 🧹 **Clean** - Automatically deactivates when leaving Python projects
+- ⚡ **Performance optimized** - Fast-path adds only ~4ms overhead to non-Python directories
+- 🧹 **Smart deactivation** - Only deactivates environments it activated
+- 🛡️ **Security focused** - Path validation and injection protection
+- 📍 **Project-aware** - Stays active in project subdirectories
+- 🔒 **Respects manual venvs** - Won't interfere with manually activated environments
 
 ## Installation
 
@@ -34,21 +37,37 @@ curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/inst
 curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- 1.0.4
 ```
 
-### Ubuntu/Debian (Coming Soon)
+### Linux (Universal Installer)
+
+Works on Ubuntu, Debian, RHEL, CentOS, Fedora, Rocky Linux, AlmaLinux:
 
 ```bash
-# Add PPA (when available)
-sudo add-apt-repository ppa:ashwch/auto-uv-env
-sudo apt update
-sudo apt install auto-uv-env
+# Install latest version
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
+
+# Install specific version
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- 1.0.4
 ```
 
-### RHEL/Fedora/CentOS (Coming Soon)
+### Ubuntu/Debian (.deb package)
 
 ```bash
-# Add repository (when available)
-sudo dnf config-manager --add-repo https://ashwch.github.io/auto-uv-env/rpm/auto-uv-env.repo
-sudo dnf install auto-uv-env
+# Build and install locally
+git clone https://github.com/ashwch/auto-uv-env.git
+cd auto-uv-env
+./scripts/build-deb.sh
+sudo apt install ./auto-uv-env_*.deb
+```
+
+### RHEL/Fedora/CentOS (.rpm package)
+
+```bash
+# Build and install locally
+git clone https://github.com/ashwch/auto-uv-env.git
+cd auto-uv-env
+./scripts/build-rpm.sh
+sudo dnf install ./auto-uv-env-*.noarch.rpm  # Fedora
+sudo yum localinstall ./auto-uv-env-*.noarch.rpm  # RHEL/CentOS
 ```
 
 ### Manual Installation
@@ -58,8 +77,9 @@ sudo dnf install auto-uv-env
 git clone https://github.com/ashwch/auto-uv-env.git
 cd auto-uv-env
 
-# Use the install script
-./scripts/install.sh
+# Use the install script with options
+./scripts/install.sh --help  # See all options
+./scripts/install.sh --universal  # Force universal install
 
 # Or manually:
 sudo cp auto-uv-env /usr/local/bin/
@@ -74,17 +94,35 @@ Add to your shell configuration:
 
 ### Zsh (~/.zshrc)
 ```zsh
+# For Homebrew
 source $(brew --prefix)/share/auto-uv-env/auto-uv-env.zsh
+
+# For Linux/manual installation
+source /usr/local/share/auto-uv-env/auto-uv-env.zsh
+# Or if installed via package
+source /usr/share/auto-uv-env/auto-uv-env.zsh
 ```
 
 ### Bash (~/.bashrc)
 ```bash
+# For Homebrew
 source $(brew --prefix)/share/auto-uv-env/auto-uv-env.bash
+
+# For Linux/manual installation
+source /usr/local/share/auto-uv-env/auto-uv-env.bash
+# Or if installed via package
+source /usr/share/auto-uv-env/auto-uv-env.bash
 ```
 
 ### Fish (~/.config/fish/config.fish)
 ```fish
+# For Homebrew
 source (brew --prefix)/share/auto-uv-env/auto-uv-env.fish
+
+# For Linux/manual installation
+source /usr/local/share/auto-uv-env/auto-uv-env.fish
+# Or if installed via package
+source /usr/share/auto-uv-env/auto-uv-env.fish
 ```
 
 ## Usage

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Universal installation script for auto-uv-env
+# Supports: Ubuntu, Debian, RHEL, CentOS, Fedora, Rocky Linux, AlmaLinux, Arch
+# Also provides a universal installation method for other distributions
 
 set -euo pipefail
 
@@ -14,6 +16,7 @@ NC='\033[0m'
 REPO_URL="https://github.com/ashwch/auto-uv-env"
 INSTALL_DIR="/usr/local"
 VERSION="${1:-latest}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Functions
 print_step() {
@@ -134,25 +137,53 @@ install_os_package() {
 }
 
 install_debian_package() {
-    print_step "Building Debian package..."
+    print_step "Installing for Debian/Ubuntu..."
 
-    # This would normally build a .deb package
-    # For now, fall back to universal install
+    # Check if we can build a .deb package
+    if command -v dpkg-deb >/dev/null 2>&1 && [[ -f "$SCRIPT_DIR/build-deb.sh" ]]; then
+        print_step "Building Debian package..."
+        "$SCRIPT_DIR/build-deb.sh"
+
+        # Install the built package
+        local deb_file="${SCRIPT_DIR}/../auto-uv-env_*.deb"
+        if ls $deb_file 1> /dev/null 2>&1; then
+            print_step "Installing package..."
+            sudo dpkg -i $deb_file || sudo apt-get install -f -y
+            return 0
+        fi
+    fi
+
+    # Fall back to universal install
+    print_warning "Cannot build .deb package, using universal installation"
     download_release
     install_files
-
-    # TODO: Add actual .deb building logic
 }
 
 install_rpm_package() {
-    print_step "Building RPM package..."
+    print_step "Installing for Red Hat/Fedora..."
 
-    # This would normally build an .rpm package
-    # For now, fall back to universal install
+    # Check if we can build an .rpm package
+    if command -v rpmbuild >/dev/null 2>&1 && [[ -f "$SCRIPT_DIR/build-rpm.sh" ]]; then
+        print_step "Building RPM package..."
+        "$SCRIPT_DIR/build-rpm.sh"
+
+        # Install the built package
+        local rpm_file="${SCRIPT_DIR}/../auto-uv-env-*.noarch.rpm"
+        if ls $rpm_file 1> /dev/null 2>&1; then
+            print_step "Installing package..."
+            if command -v dnf >/dev/null 2>&1; then
+                sudo dnf install -y $rpm_file
+            else
+                sudo yum localinstall -y $rpm_file
+            fi
+            return 0
+        fi
+    fi
+
+    # Fall back to universal install
+    print_warning "Cannot build .rpm package, using universal installation"
     download_release
     install_files
-
-    # TODO: Add actual .rpm building logic
 }
 
 setup_shell() {
@@ -189,20 +220,90 @@ setup_shell() {
     fi
 }
 
+show_usage() {
+    cat << EOF
+auto-uv-env installer
+
+Usage: $0 [OPTIONS] [VERSION]
+
+Options:
+    -h, --help          Show this help message
+    -u, --universal     Force universal installation (skip OS packages)
+    -s, --skip-shell    Skip shell integration setup
+    -d, --dir DIR       Installation directory (default: /usr/local)
+
+Version:
+    latest              Install the latest version (default)
+    X.Y.Z               Install a specific version
+
+Examples:
+    $0                  # Install latest version
+    $0 1.0.4            # Install version 1.0.4
+    $0 --universal      # Force universal installation
+    $0 --dir /opt      # Install to /opt instead of /usr/local
+
+Supported operating systems:
+    - Ubuntu / Debian (builds .deb package)
+    - RHEL / CentOS / Fedora / Rocky / AlmaLinux (builds .rpm package)
+    - Arch Linux (AUR compatible)
+    - macOS (use Homebrew instead: brew install ashwch/tap/auto-uv-env)
+    - Others (universal installation)
+
+EOF
+}
+
 main() {
-    echo "auto-uv-env installer"
-    echo "===================="
+    # Parse arguments
+    local skip_shell=0
+    local force_universal=0
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            -u|--universal)
+                force_universal=1
+                shift
+                ;;
+            -s|--skip-shell)
+                skip_shell=1
+                shift
+                ;;
+            -d|--dir)
+                INSTALL_DIR="$2"
+                shift 2
+                ;;
+            -*)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+            *)
+                VERSION="$1"
+                shift
+                ;;
+        esac
+    done
+
+    echo "auto-uv-env installer v${VERSION}"
+    echo "=========================="
     echo ""
 
     # Detect OS
     detect_os
     print_step "Detected OS: $OS"
 
+    # Show installation directory
+    print_step "Installation directory: $INSTALL_DIR"
+
     # Check dependencies
     check_dependencies
 
     # Install based on OS
-    if [[ "${USE_UNIVERSAL:-0}" == "1" ]]; then
+    if [[ "$force_universal" == "1" ]]; then
+        print_step "Using universal installation method"
         download_release
         install_files
     else
@@ -210,7 +311,11 @@ main() {
     fi
 
     # Setup shell integration
-    setup_shell
+    if [[ "$skip_shell" == "0" ]]; then
+        setup_shell
+    else
+        print_step "Skipping shell integration setup"
+    fi
 
     # Verify installation
     if command -v auto-uv-env >/dev/null 2>&1; then
@@ -221,10 +326,17 @@ main() {
         echo "1. Install UV if not already installed:"
         echo "   curl -LsSf https://astral.sh/uv/install.sh | sh"
         echo ""
-        echo "2. Reload your shell configuration:"
-        echo "   source ~/.bashrc  # or ~/.zshrc"
+        if [[ "$skip_shell" == "0" ]]; then
+            echo "2. Reload your shell configuration:"
+            echo "   source ~/.bashrc  # or ~/.zshrc for Zsh, config.fish for Fish"
+        else
+            echo "2. Add auto-uv-env to your shell configuration manually."
+            echo "   See: https://github.com/ashwch/auto-uv-env#setup"
+        fi
         echo ""
         echo "3. Navigate to a Python project with pyproject.toml"
+        echo ""
+        echo "For more information: https://github.com/ashwch/auto-uv-env"
     else
         print_error "Installation failed. Please check the error messages above."
         exit 1
