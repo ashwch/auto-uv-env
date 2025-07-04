@@ -120,7 +120,8 @@ jobs:
         export HOME=$TEST_HOME
 
         # Run installer and expect it to suggest Homebrew
-        echo "n" | bash ./docs/install.sh | tee output.log
+        # Capture both stdout and stderr since output goes to stderr
+        echo "n" | bash ./docs/install.sh 2>&1 | tee output.log || true
 
         if ! grep -q "Homebrew detected" output.log; then
           echo "Error: Installer did not detect Homebrew"
@@ -129,6 +130,12 @@ jobs:
 
         if ! grep -q "brew tap ashwch/tap" output.log; then
           echo "Error: Installer did not suggest Homebrew installation"
+          exit 1
+        fi
+
+        # Verify that installation was cancelled
+        if ! grep -q "Installation cancelled" output.log; then
+          echo "Error: Installer did not cancel when 'n' was provided"
           exit 1
         fi
 
