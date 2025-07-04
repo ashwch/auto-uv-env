@@ -1,3 +1,8 @@
+---
+layout: home
+title: Home
+---
+
 # auto-uv-env Documentation
 
 This is the documentation site for auto-uv-env.
