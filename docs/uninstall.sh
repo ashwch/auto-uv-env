@@ -143,16 +143,18 @@ main() {
         [ -n "$receipt_bin" ] && bin_dir="$receipt_bin"
     fi
 
-    # Confirm uninstallation
-    printf "\nRemove auto-uv-env? [y/N] "
-    read -r response
-    case "$response" in
-        [yY][eE][sS]|[yY]) ;;
-        *)
-            say "Uninstallation cancelled"
-            exit 0
-            ;;
-    esac
+    # Confirm uninstallation (skip if -y flag is set)
+    if [ "${ASSUME_YES:-0}" != "1" ]; then
+        printf "\nRemove auto-uv-env? [y/N] "
+        read -r response
+        case "$response" in
+            [yY][eE][sS]|[yY]) ;;
+            *)
+                say "Uninstallation cancelled"
+                exit 0
+                ;;
+        esac
+    fi
 
     # Remove files
     info "removing auto-uv-env files"
@@ -184,6 +186,33 @@ main() {
     info "restart your shell to complete the removal"
     say ""
 }
+
+# Parse command line arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -y|--yes)
+            ASSUME_YES=1
+            ;;
+        -h|--help)
+            cat << EOF
+auto-uv-env uninstaller
+
+USAGE:
+    uninstall.sh [OPTIONS]
+
+OPTIONS:
+    -y, --yes    Assume yes to all prompts (for CI/automation)
+    -h, --help   Show this help message
+
+EOF
+            exit 0
+            ;;
+        *)
+            err "unknown option: $1"
+            ;;
+    esac
+    shift
+done
 
 # Run the uninstaller
 main

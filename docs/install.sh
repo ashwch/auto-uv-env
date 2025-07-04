@@ -352,16 +352,22 @@ main() {
             say "  ${GREEN}brew tap ashwch/tap${RESET}"
             say "  ${GREEN}brew install auto-uv-env${RESET}"
             say ""
-            # Use stderr for the prompt too to ensure proper ordering
-            printf "Continue with direct installation instead? [y/N] " >&2
-            read -r response
-            case "$response" in
-                [yY][eE][sS]|[yY]) ;;
-                *)
-                    say "Installation cancelled. Use Homebrew instead!"
-                    exit 0
-                    ;;
-            esac
+
+            # Skip prompt if -y flag is set
+            if [ "${ASSUME_YES:-0}" = "1" ]; then
+                say "Continuing with direct installation (--yes flag set)"
+            else
+                # Use stderr for the prompt too to ensure proper ordering
+                printf "Continue with direct installation instead? [y/N] " >&2
+                read -r response
+                case "$response" in
+                    [yY][eE][sS]|[yY]) ;;
+                    *)
+                        say "Installation cancelled. Use Homebrew instead!"
+                        exit 0
+                        ;;
+                esac
+            fi
         fi
     fi
 
@@ -416,8 +422,8 @@ while [ $# -gt 0 ]; do
         -q|--quiet)
             QUIET=1
             ;;
-        --ci)
-            CI_MODE=1
+        -y|--yes)
+            ASSUME_YES=1
             ;;
         -h|--help)
             cat << EOF
@@ -429,6 +435,7 @@ USAGE:
 OPTIONS:
     -v, --verbose    Show verbose output
     -q, --quiet      Suppress output
+    -y, --yes        Assume yes to all prompts (for CI/automation)
     -h, --help       Show this help message
 
 ENVIRONMENT VARIABLES:

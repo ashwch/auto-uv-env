@@ -89,8 +89,8 @@ jobs:
         # Install first
         bash ./docs/install.sh --quiet
 
-        # Run uninstaller with auto-confirm
-        echo "y" | bash ./docs/uninstall.sh
+        # Run uninstaller with -y flag
+        bash ./docs/uninstall.sh -y
 
         # Verify removal
         if [ -f "$HOME/.local/bin/auto-uv-env" ]; then
@@ -115,16 +115,15 @@ jobs:
 
     - name: Test Homebrew detection
       run: |
-        # The installer should detect Homebrew and suggest using it
+        # Test 1: The installer should detect Homebrew and suggest using it
         export TEST_HOME=$(mktemp -d)
         export HOME=$TEST_HOME
 
-        # Run installer and expect it to suggest Homebrew
-        # Capture both stdout and stderr since output goes to stderr
-        echo "n" | bash ./docs/install.sh 2>&1 | tee output.log || true
+        # First test: Rejection of direct install (default behavior)
+        printf 'n\n' | bash ./docs/install.sh > output.log 2>&1 || echo "Exit code: $?"
 
         # Debug: Show what was captured
-        echo "=== Captured output ==="
+        echo "=== Test 1: Rejection test output ==="
         cat output.log
         echo "=== End of output ==="
 
@@ -138,13 +137,36 @@ jobs:
           exit 1
         fi
 
-        # Verify that installation was cancelled
         if ! grep -q "Installation cancelled" output.log; then
           echo "Error: Installer did not cancel when 'n' was provided"
           exit 1
         fi
 
-        echo "Homebrew detection test passed!"
+        echo "✓ Homebrew detection test passed!"
+
+        # Test 2: The installer should proceed with -y flag
+        export TEST_HOME=$(mktemp -d)
+        export HOME=$TEST_HOME
+        mkdir -p "$HOME/.bashrc"
+        touch "$HOME/.bashrc"
+
+        bash ./docs/install.sh -y > output2.log 2>&1
+
+        echo "=== Test 2: --yes flag test output ==="
+        cat output2.log
+        echo "=== End of output ==="
+
+        if ! grep -q "Continuing with direct installation" output2.log; then
+          echo "Error: Installer did not continue with --yes flag"
+          exit 1
+        fi
+
+        if [ ! -f "$HOME/.local/bin/auto-uv-env" ]; then
+          echo "Error: auto-uv-env was not installed with --yes flag"
+          exit 1
+        fi
+
+        echo "✓ --yes flag test passed!"
 
   test-installation-paths:
     name: Test Custom Installation Paths
