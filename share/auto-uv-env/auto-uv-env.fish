@@ -45,12 +45,19 @@ if command -v auto-uv-env >/dev/null 2>&1
             source "$venv_dir/bin/activate.fish"
             set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
             # Use fish string manipulation instead of cut for performance
-            set -l python_full_version (python --version 2>&1)
-            set -l python_version (string replace "Python " "" "$python_full_version")
-            if test "$AUTO_UV_ENV_QUIET" != "1"
-                echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+            # Handle case where python might not be available yet in UV environments
+            if set -l python_full_version (python --version 2>&1)
+                set -l python_version (string replace "Python " "" "$python_full_version")
+                if test "$AUTO_UV_ENV_QUIET" != "1"
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                end
+                set -gx AUTO_UV_ENV_PYTHON_VERSION "$python_version"
+            else
+                if test "$AUTO_UV_ENV_QUIET" != "1"
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated"
+                end
+                set -gx AUTO_UV_ENV_PYTHON_VERSION "unknown"
             end
-            set -gx AUTO_UV_ENV_PYTHON_VERSION "$python_version"
             return 0
         end
 
@@ -146,12 +153,19 @@ if command -v auto-uv-env >/dev/null 2>&1
                 # Track where we activated from
                 set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
                 # Use fish string manipulation instead of cut for performance
-                set -l python_full_version (python --version 2>&1)
-                set -l python_version (string replace "Python " "" "$python_full_version")
-                if test "$AUTO_UV_ENV_QUIET" != "1"
-                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                # Handle case where python might not be available yet in UV environments
+                if set -l python_full_version (python --version 2>&1)
+                    set -l python_version (string replace "Python " "" "$python_full_version")
+                    if test "$AUTO_UV_ENV_QUIET" != "1"
+                        echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                    end
+                    set -gx AUTO_UV_ENV_PYTHON_VERSION $python_version
+                else
+                    if test "$AUTO_UV_ENV_QUIET" != "1"
+                        echo -e "\033[0;32m🚀\033[0m UV environment activated"
+                    end
+                    set -gx AUTO_UV_ENV_PYTHON_VERSION "unknown"
                 end
-                set -gx AUTO_UV_ENV_PYTHON_VERSION $python_version
             else if test -n "$activate_path" -a -f "$activate_path/pyvenv.cfg"
                 # Fish-specific activation when activate.fish doesn't exist
                 set -gx VIRTUAL_ENV $activate_path
@@ -160,12 +174,19 @@ if command -v auto-uv-env >/dev/null 2>&1
                 # Track where we activated from
                 set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
                 # Use fish string manipulation instead of cut for performance
-                set -l python_full_version (python --version 2>&1)
-                set -l python_version (string replace "Python " "" "$python_full_version")
-                if test "$AUTO_UV_ENV_QUIET" != "1"
-                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                # Handle case where python might not be available yet in UV environments
+                if set -l python_full_version (python --version 2>&1)
+                    set -l python_version (string replace "Python " "" "$python_full_version")
+                    if test "$AUTO_UV_ENV_QUIET" != "1"
+                        echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                    end
+                    set -gx AUTO_UV_ENV_PYTHON_VERSION $python_version
+                else
+                    if test "$AUTO_UV_ENV_QUIET" != "1"
+                        echo -e "\033[0;32m🚀\033[0m UV environment activated"
+                    end
+                    set -gx AUTO_UV_ENV_PYTHON_VERSION "unknown"
                 end
-                set -gx AUTO_UV_ENV_PYTHON_VERSION $python_version
             end
         end
     end

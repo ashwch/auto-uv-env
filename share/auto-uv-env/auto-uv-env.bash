@@ -47,10 +47,15 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
                 local python_version python_full_version
                 # Use shell parameter expansion instead of cut for performance
-                python_full_version=$(python --version 2>&1)
-                python_version="${python_full_version#Python }"
-                echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
-                export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
+                # Handle case where python might not be available yet in UV environments
+                if python_full_version=$(python --version 2>&1); then
+                    python_version="${python_full_version#Python }"
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                    export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
+                else
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated"
+                    export AUTO_UV_ENV_PYTHON_VERSION="unknown"
+                fi
             else
                 # Skip version check in quiet mode
                 export AUTO_UV_ENV_PYTHON_VERSION="unknown"
@@ -126,12 +131,19 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                 export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
                 local auto_uv_env_python_version_val python_full_version
                 # Use shell parameter expansion instead of cut for performance
-                python_full_version=$(python --version 2>&1)
-                auto_uv_env_python_version_val="${python_full_version#Python }"
-                if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
-                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $auto_uv_env_python_version_val)"
+                # Handle case where python might not be available yet in UV environments
+                if python_full_version=$(python --version 2>&1); then
+                    auto_uv_env_python_version_val="${python_full_version#Python }"
+                    if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
+                        echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $auto_uv_env_python_version_val)"
+                    fi
+                    export AUTO_UV_ENV_PYTHON_VERSION="$auto_uv_env_python_version_val"
+                else
+                    if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
+                        echo -e "\033[0;32m🚀\033[0m UV environment activated"
+                    fi
+                    export AUTO_UV_ENV_PYTHON_VERSION="unknown"
                 fi
-                export AUTO_UV_ENV_PYTHON_VERSION="$auto_uv_env_python_version_val"
             fi
     }
 
