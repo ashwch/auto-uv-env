@@ -30,9 +30,22 @@ if command -v auto-uv-env >/dev/null 2>&1; then
         fi
 
         # Performance optimization: If we're already in the right venv, skip the check
+        # But first verify the virtual environment still exists
         if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ "$PWD" == "${_AUTO_UV_ENV_ACTIVATION_DIR:-}"* ]]; then
-            # We're still in the same project tree with an active venv
-            return 0
+            # Check if the virtual environment directory still exists
+            if [[ -d "${VIRTUAL_ENV:-}" ]]; then
+                # We're still in the same project tree with an active venv
+                return 0
+            else
+                # Virtual environment was deleted, clean up the state
+                if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
+                    echo -e '\033[0;33m⚠️\033[0m  Virtual environment was deleted, cleaning up...'
+                fi
+                unset VIRTUAL_ENV
+                unset _AUTO_UV_ENV_ACTIVATION_DIR
+                unset AUTO_UV_ENV_PYTHON_VERSION
+                # Continue to check if we need to recreate it
+            fi
         fi
 
         # Performance optimization: Batch check for .venv existence
