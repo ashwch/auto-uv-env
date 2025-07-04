@@ -8,13 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.5] - 2025-07-03
 
 ### Added
--
-
-### Changed
--
+- Universal installer script based on UV's elegant approach (`curl -LsSf https://auto-uv-env.ashwch.com/install.sh | sh`)
+- Uninstaller script with automatic shell integration cleanup  
+- `-y`/`--yes` flag for non-interactive installations in CI/automation
+- GitHub Pages documentation site at https://auto-uv-env.ashwch.com
 
 ### Fixed
--
+- Shell startup performance issue (149ms delay) with fast-path optimization for non-Python directories
+- Broken pipe error when running `--version` command
+- Syntax error in auto-uv-env.bash preventing proper functionality
+- Various shellcheck warnings in shell integration files
 
 
 ## [1.0.4] - 2025-07-03
