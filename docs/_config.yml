@@ -11,7 +11,7 @@ markdown: kramdown
 highlighter: rouge
 
 # Remove theme as we're using custom layouts
-# theme: minima
+theme: null
 
 exclude:
   - README.md
