@@ -17,11 +17,38 @@ Automatic UV-based Python virtual environment management for your shell. No more
 
 ## Installation
 
-### Using Homebrew (recommended)
+### Using Homebrew (macOS/Linux)
 
 ```bash
 brew tap ashwch/tap
 brew install auto-uv-env
+```
+
+### Using Install Script (Ubuntu/Debian/RHEL/Fedora)
+
+```bash
+# Install latest version
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
+
+# Install specific version
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- 1.0.4
+```
+
+### Ubuntu/Debian (Coming Soon)
+
+```bash
+# Add PPA (when available)
+sudo add-apt-repository ppa:ashwch/auto-uv-env
+sudo apt update
+sudo apt install auto-uv-env
+```
+
+### RHEL/Fedora/CentOS (Coming Soon)
+
+```bash
+# Add repository (when available)
+sudo dnf config-manager --add-repo https://ashwch.github.io/auto-uv-env/rpm/auto-uv-env.repo
+sudo dnf install auto-uv-env
 ```
 
 ### Manual Installation
@@ -31,11 +58,12 @@ brew install auto-uv-env
 git clone https://github.com/ashwch/auto-uv-env.git
 cd auto-uv-env
 
-# Copy the executable to your PATH
+# Use the install script
+./scripts/install.sh
+
+# Or manually:
 sudo cp auto-uv-env /usr/local/bin/
 sudo chmod +x /usr/local/bin/auto-uv-env
-
-# Copy shell integration files
 sudo mkdir -p /usr/local/share/auto-uv-env
 sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
 ```

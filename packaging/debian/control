@@ -1,0 +1,20 @@
+Package: auto-uv-env
+Version: 1.0.4
+Section: utils
+Priority: optional
+Architecture: all
+Maintainer: Ashwini Chaudhary <ashwch@example.com>
+Depends: bash (>= 4.0)
+Recommends: uv
+Description: Automatic UV-based Python virtual environment management
+ auto-uv-env automatically activates Python virtual environments when
+ you navigate to Python projects. It detects pyproject.toml files,
+ creates virtual environments using UV, and manages activation/deactivation
+ seamlessly.
+ .
+ Features:
+  - Automatic virtual environment activation
+  - UV-powered for fast environment creation
+  - Multi-shell support (Bash, Zsh, Fish)
+  - Zero configuration required
+Homepage: https://github.com/ashwch/auto-uv-env

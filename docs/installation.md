@@ -17,7 +17,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ## Installation Methods
 
-### Option 1: Homebrew (Recommended) 🍺
+### Option 1: Homebrew (macOS/Linux) 🍺
 
 The easiest way to install auto-uv-env:
 
@@ -29,7 +29,19 @@ brew tap ashwch/tap
 brew install auto-uv-env
 ```
 
-### Option 2: Manual Installation
+### Option 2: Install Script (Universal)
+
+Works on Ubuntu, Debian, RHEL, Fedora, CentOS, and more:
+
+```bash
+# Install latest version
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
+
+# Install specific version
+curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- 1.0.4
+```
+
+### Option 3: Manual Installation
 
 For systems without Homebrew or if you prefer manual installation:
 
@@ -47,7 +59,25 @@ sudo mkdir -p /usr/local/share/auto-uv-env
 sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
 ```
 
-### Option 3: Direct Download
+### Option 4: Package Managers (Coming Soon)
+
+#### Ubuntu/Debian
+
+```bash
+# Download .deb from releases
+wget https://github.com/ashwch/auto-uv-env/releases/latest/download/auto-uv-env_1.0.4_all.deb
+sudo dpkg -i auto-uv-env_1.0.4_all.deb
+```
+
+#### RHEL/Fedora/CentOS
+
+```bash
+# Download .rpm from releases
+wget https://github.com/ashwch/auto-uv-env/releases/latest/download/auto-uv-env-1.0.4-1.noarch.rpm
+sudo rpm -i auto-uv-env-1.0.4-1.noarch.rpm
+```
+
+### Option 5: Direct Download
 
 ```bash
 # Download the latest release
