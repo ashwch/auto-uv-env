@@ -7,14 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.8] - 2025-07-04
 
-### Added
--
+### Fixed
+- Fixed "command not found: python" error when activating UV virtual environments without Python installed
+- Improved messaging when Python is missing in virtual environments
 
 ### Changed
--
-
-### Fixed
--
+- When Python is not available in a UV virtual environment, now shows clear message: "UV environment activated (Python not installed)"
+- Added helpful guidance: "Run 'uv python install' to install Python"
+- Enhanced user experience with informative error messages instead of cryptic command failures
 
 
 ## [1.0.7] - 2025-07-04
