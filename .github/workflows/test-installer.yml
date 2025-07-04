@@ -123,6 +123,11 @@ jobs:
         # Capture both stdout and stderr since output goes to stderr
         echo "n" | bash ./docs/install.sh 2>&1 | tee output.log || true
 
+        # Debug: Show what was captured
+        echo "=== Captured output ==="
+        cat output.log
+        echo "=== End of output ==="
+
         if ! grep -q "Homebrew detected" output.log; then
           echo "Error: Installer did not detect Homebrew"
           exit 1

@@ -352,7 +352,8 @@ main() {
             say "  ${GREEN}brew tap ashwch/tap${RESET}"
             say "  ${GREEN}brew install auto-uv-env${RESET}"
             say ""
-            printf "Continue with direct installation instead? [y/N] "
+            # Use stderr for the prompt too to ensure proper ordering
+            printf "Continue with direct installation instead? [y/N] " >&2
             read -r response
             case "$response" in
                 [yY][eE][sS]|[yY]) ;;
