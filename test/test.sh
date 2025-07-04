@@ -14,6 +14,7 @@ AUTO_UV_ENV="$PROJECT_ROOT/auto-uv-env"
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
+# shellcheck disable=SC2034
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
@@ -48,9 +49,11 @@ test_help_flag() {
 }
 
 test_no_pyproject() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     cd "$temp_dir"
-    local output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
     cd - > /dev/null
     rm -rf "$temp_dir"
     # Should have no output or only deactivation message
@@ -58,7 +61,8 @@ test_no_pyproject() {
 }
 
 test_valid_pyproject() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     cd "$temp_dir"
     cat > pyproject.toml << 'EOF'
 [project]
@@ -66,7 +70,8 @@ name = "test-project"
 requires-python = ">=3.11"
 EOF
 
-    local output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
     cd - > /dev/null
     rm -rf "$temp_dir"
     # Should either find UV or report UV not found
@@ -74,7 +79,8 @@ EOF
 }
 
 test_safe_mode() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     cd "$temp_dir"
     cat > pyproject.toml << 'EOF'
 [project]
@@ -82,7 +88,8 @@ name = "test-project"
 requires-python = ">=3.11"
 EOF
 
-    local output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
     cd - > /dev/null
     rm -rf "$temp_dir"
     # Should work without injection
@@ -90,7 +97,8 @@ EOF
 }
 
 test_invalid_version_format() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     cd "$temp_dir"
     cat > pyproject.toml << 'EOF'
 [project]
@@ -98,7 +106,8 @@ name = "test-project"
 requires-python = ">=invalid.version"
 EOF
 
-    local output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
     cd - > /dev/null
     rm -rf "$temp_dir"
     # Invalid versions should still allow venv creation but without specific Python version
@@ -107,13 +116,15 @@ EOF
 
 test_path_traversal_protection() {
     export AUTO_UV_ENV_VENV_NAME="../malicious"
-    local output=$($AUTO_UV_ENV --version 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --version 2>&1 || true)
     unset AUTO_UV_ENV_VENV_NAME
     [[ "$output" == *"Invalid venv name"* ]]
 }
 
 test_command_injection_protection() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     cd "$temp_dir"
     cat > pyproject.toml << 'EOF'
 [project]
@@ -121,7 +132,8 @@ name = "test-project"
 requires-python = ">=3.11.x'; echo INJECTION_SUCCESS; echo 'more"
 EOF
 
-    local output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
     cd - > /dev/null
     rm -rf "$temp_dir"
     # Should either reject the version or not execute the injection
@@ -129,17 +141,20 @@ EOF
 }
 
 test_unknown_option() {
-    local output=$($AUTO_UV_ENV --unknown-option 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --unknown-option 2>&1 || true)
     [[ "$output" == *"Unknown option"* ]]
 }
 
 test_diagnose_command() {
-    local output=$($AUTO_UV_ENV --diagnose 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --diagnose 2>&1 || true)
     [[ "$output" == *"diagnostic report"* ]]
 }
 
 test_validate_command() {
-    local output=$($AUTO_UV_ENV --validate 2>&1 || true)
+    local output
+    output=$($AUTO_UV_ENV --validate 2>&1 || true)
     # Should either pass or show specific validation errors
     [[ "$output" == *"version consistency"* ]] || [[ "$output" == *"Version"* ]]
 }

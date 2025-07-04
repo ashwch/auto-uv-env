@@ -46,7 +46,7 @@ info() {
 # Find installation
 find_installation() {
     # Check common locations
-    local possible_locations="
+possible_locations="
         $HOME/.local/share/auto-uv-env
         /usr/local/share/auto-uv-env
         /usr/share/auto-uv-env
@@ -75,7 +75,7 @@ find_installation() {
 
 # Remove shell integration
 remove_shell_integration() {
-    local removed=0
+removed=0
 
     info "removing shell integration"
 
@@ -103,7 +103,7 @@ remove_shell_integration() {
     fi
 
     # Remove from fish
-    local fish_config="$HOME/.config/fish/config.fish"
+fish_config="$HOME/.config/fish/config.fish"
     if [ -f "$fish_config" ] && grep -q "auto-uv-env" "$fish_config" 2>/dev/null; then
         say "  removing from fish config"
         sed -i.bak '/# auto-uv-env/,+3d' "$fish_config" 2>/dev/null || \
@@ -127,7 +127,7 @@ main() {
     # Find installation
     info "looking for auto-uv-env installation"
 
-    local share_dir
+share_dir
     if ! share_dir="$(find_installation)"; then
         err "auto-uv-env installation not found"
     fi
@@ -135,10 +135,10 @@ main() {
     say "  found at: $share_dir"
 
     # Determine bin directory
-    local bin_dir="$HOME/.local/bin"
+bin_dir="$HOME/.local/bin"
     if [ -f "$share_dir/install-receipt.json" ]; then
         # Try to extract from receipt (basic parsing)
-        local receipt_bin
+receipt_bin
         receipt_bin="$(grep '"bin_dir"' "$share_dir/install-receipt.json" | cut -d'"' -f4)"
         [ -n "$receipt_bin" ] && bin_dir="$receipt_bin"
     fi

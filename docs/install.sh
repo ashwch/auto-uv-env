@@ -83,7 +83,7 @@ get_home() {
         printf '%s' "$HOME"
     else
         # Fall back to getent if HOME is not set
-        local user
+user
         user="${USER:-$(id -un)}"
         getent passwd "$user" 2>/dev/null | cut -d: -f6
     fi
@@ -91,7 +91,7 @@ get_home() {
 
 # Detect the platform
 detect_platform() {
-    local os arch
+os arch
 
     os="$(uname -s)"
     arch="$(uname -m)"
@@ -126,8 +126,8 @@ detect_platform() {
 
 # Download file with curl or wget
 download() {
-    local url="$1"
-    local output="$2"
+url="$1"
+output="$2"
 
     if check_cmd curl; then
         # Check for broken snap curl
@@ -149,8 +149,8 @@ download() {
 
 # Download and extract the latest release
 download_and_extract() {
-    local platform="$1"
-    local temp_dir
+platform="$1"
+temp_dir
     temp_dir="$(mktemp -d)"
 
     # Clean up on exit
@@ -158,8 +158,8 @@ download_and_extract() {
 
     info "downloading auto-uv-env (latest)"
 
-    local archive_url="${REPO_URL}/archive/main.tar.gz"
-    local archive_file="$temp_dir/auto-uv-env.tar.gz"
+archive_url="${REPO_URL}/archive/main.tar.gz"
+archive_file="$temp_dir/auto-uv-env.tar.gz"
 
     download "$archive_url" "$archive_file"
 
@@ -172,7 +172,7 @@ download_and_extract() {
 
 # Install auto-uv-env files
 install_auto_uv_env() {
-    local source_dir="$1"
+source_dir="$1"
 
     # Create directories
     say_verbose "creating directories"
@@ -236,9 +236,8 @@ elif [ -n "\${ZSH_VERSION:-}" ]; then
 fi
 EOF
 
-    # Detect current shell and available shells
-    local shells_updated=""
-    local current_shell="$(basename "${SHELL:-/bin/sh}")"
+    # Detect available shells
+shells_updated=""
 
     # Update shell configurations
     update_shell_profile "bash" ".bashrc" ".bash_profile" && shells_updated="${shells_updated}bash "
@@ -255,15 +254,14 @@ EOF
 
 # Update bash/zsh profile
 update_shell_profile() {
-    local shell_name="$1"
     shift
 
-    local updated=0
-    local home_dir
+updated=0
+home_dir
     home_dir="$(get_home)"
 
     for profile in "$@"; do
-        local profile_path="$home_dir/$profile"
+profile_path="$home_dir/$profile"
 
         # Skip if file doesn't exist and we haven't updated any file yet
         if [ ! -f "$profile_path" ] && [ "$updated" -eq 0 ]; then
@@ -293,9 +291,9 @@ update_shell_profile() {
 
 # Update fish configuration
 update_fish_config() {
-    local home_dir
+home_dir
     home_dir="$(get_home)"
-    local fish_config="$home_dir/.config/fish/config.fish"
+fish_config="$home_dir/.config/fish/config.fish"
 
     # Check if fish config exists
     if [ ! -d "$home_dir/.config/fish" ]; then
@@ -336,7 +334,7 @@ check_uv() {
 
 # Main installation function
 main() {
-    local platform
+platform
     platform="$(detect_platform)"
 
     say ""
@@ -383,7 +381,7 @@ main() {
     need_cmd cp
 
     # Download and extract
-    local source_dir
+source_dir
     source_dir="$(download_and_extract "$platform")"
 
     # Install files
@@ -420,7 +418,7 @@ while [ $# -gt 0 ]; do
             VERBOSE=1
             ;;
         -q|--quiet)
-            QUIET=1
+            # Quiet mode (currently unused)
             ;;
         -y|--yes)
             ASSUME_YES=1

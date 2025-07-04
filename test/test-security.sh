@@ -9,6 +9,7 @@ AUTO_UV_ENV="$SCRIPT_DIR/../auto-uv-env"
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
+# shellcheck disable=SC2034
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
@@ -107,7 +108,7 @@ EOF
 
 # Check that no files are created in current directory
 files_before=$(find . -type f | wc -l)
-$AUTO_UV_ENV --check-safe 2>&1 >/dev/null || true
+$AUTO_UV_ENV --check-safe >/dev/null 2>&1 || true
 files_after=$(find . -type f | wc -l)
 
 if [[ "$files_before" -eq "$files_after" ]]; then

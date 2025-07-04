@@ -10,12 +10,12 @@ PROJECT_ROOT="$SCRIPT_DIR/.."
 # Add project root to PATH for tests
 export PATH="$PROJECT_ROOT:$PATH"
 
-AUTO_UV_ENV="$PROJECT_ROOT/auto-uv-env"
 INTEGRATION_DIR="$SCRIPT_DIR/../share/auto-uv-env"
 
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
+# shellcheck disable=SC2034
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
@@ -67,7 +67,8 @@ test_fish_syntax() {
 
 # Test state file parsing in bash
 test_bash_state_parsing() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     local state_file="$temp_dir/test.state"
 
     # Create mock state file
@@ -109,7 +110,7 @@ EOF
 
     local exit_code=$?
     rm -rf "$temp_dir"
-    return $exit_code
+    return "$exit_code"
 }
 
 # Test fish state file parsing
@@ -119,7 +120,8 @@ test_fish_state_parsing() {
         return 0
     fi
 
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     local state_file="$temp_dir/test.state"
 
     # Create mock state file
@@ -160,12 +162,13 @@ EOF
 
     local exit_code=$?
     rm -rf "$temp_dir"
-    return $exit_code
+    return "$exit_code"
 }
 
 # Test actual auto_uv_env function end-to-end
 test_integration_end_to_end() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     cd "$temp_dir"
 
     # Create real pyproject.toml
@@ -216,7 +219,8 @@ EOF
 
 # Test integration error handling
 test_integration_error_handling() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
 
     # Test with non-existent state file
     local result
@@ -236,7 +240,8 @@ test_integration_error_handling() {
 
 # Test deactivation logic
 test_deactivation_logic() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     local state_file="$temp_dir/deactivate.state"
 
     echo "DEACTIVATE=1" > "$state_file"
@@ -270,7 +275,8 @@ test_deactivation_logic() {
 
 # Test state file cleanup
 test_state_file_cleanup() {
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     local state_file="$temp_dir/cleanup.state"
 
     echo "CREATE_VENV=1" > "$state_file"

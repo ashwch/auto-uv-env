@@ -45,9 +45,9 @@ if command -v auto-uv-env >/dev/null 2>&1; then
 
             # Performance: Only get Python version if we need to display it
             if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
-                local python_version
+                local python_version python_full_version
                 # Use shell parameter expansion instead of cut for performance
-                local python_full_version=$(python --version 2>&1)
+                python_full_version=$(python --version 2>&1)
                 python_version="${python_full_version#Python }"
                 echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
                 export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
@@ -124,9 +124,9 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                 source "$activate_path/bin/activate"
                 # Track where we activated from
                 export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
-                local auto_uv_env_python_version_val
+                local auto_uv_env_python_version_val python_full_version
                 # Use shell parameter expansion instead of cut for performance
-                local python_full_version=$(python --version 2>&1)
+                python_full_version=$(python --version 2>&1)
                 auto_uv_env_python_version_val="${python_full_version#Python }"
                 if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $auto_uv_env_python_version_val)"
