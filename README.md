@@ -12,7 +12,7 @@ Automatic UV-based Python virtual environment management for your shell. No more
 - 📦 **pyproject.toml aware** - Reads Python version from `requires-python`
 - 🎯 **Zero configuration** - Works out of the box
 - 🐚 **Multi-shell support** - Works with Zsh, Bash, and Fish
-- ⚡ **Performance optimized** - Fast-path adds only ~4ms overhead to non-Python directories
+- ⚡ **Performance optimized** - Minimal overhead: 8.6ms on shell startup, 1.3ms per directory change
 - 🧹 **Smart deactivation** - Only deactivates environments it activated
 - 🛡️ **Security focused** - Path validation and injection protection
 - 📍 **Project-aware** - Stays active in project subdirectories
@@ -157,10 +157,26 @@ auto-uv-env will automatically use Python 3.11 for this project.
 
 ## Performance
 
-auto-uv-env is designed to be fast:
-- **Non-Python directories**: ~0ms (immediate return)
-- **Python projects**: <5ms for activation check
-- **First-time setup**: 1-5 seconds (UV creates the environment)
+auto-uv-env is designed with performance in mind. Based on real-world measurements:
+
+### Shell Startup Overhead
+- **Normal mode**: 8.6ms added to shell startup
+- **Quiet mode**: 1.6ms added to shell startup (81% faster)
+
+### Directory Change Overhead (`cd` command)
+- **Normal mode**: 1.3ms per directory change
+- **Quiet mode**: 0.4ms per directory change
+
+### First-time Environment Creation
+- **Initial setup**: 1-5 seconds (UV creates the virtual environment)
+- **Subsequent activations**: Near-instant (uses cached environment)
+
+### Performance Tips
+For best performance, enable quiet mode:
+```bash
+export AUTO_UV_ENV_QUIET=1
+```
+This skips the Python version display, reducing overhead by ~80%.
 
 ## Integration with Other Tools
 
