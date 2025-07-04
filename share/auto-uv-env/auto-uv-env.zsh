@@ -51,7 +51,10 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                 [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
                 export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
             else
-                [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;32m🚀\033[0m UV environment activated"
+                if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python not installed)"
+                    echo -e "\033[0;34mℹ️\033[0m  Run 'uv python install' to install Python"
+                fi
                 export AUTO_UV_ENV_PYTHON_VERSION="unknown"
             fi
             return 0
@@ -136,7 +139,8 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                     export AUTO_UV_ENV_PYTHON_VERSION="$auto_uv_env_python_version_val"
                 else
                     if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
-                        echo -e "\033[0;32m🚀\033[0m UV environment activated"
+                        echo -e "\033[0;32m🚀\033[0m UV environment activated (Python not installed)"
+                        echo -e "\033[0;34mℹ️\033[0m  Run 'uv python install' to install Python"
                     fi
                     export AUTO_UV_ENV_PYTHON_VERSION="unknown"
                 fi
