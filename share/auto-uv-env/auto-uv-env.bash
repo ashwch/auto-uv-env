@@ -4,10 +4,31 @@
 # Add this to your ~/.bashrc:
 #   source $(brew --prefix)/share/auto-uv-env/auto-uv-env.bash
 
+# State tracking for proper deactivation
+export _AUTO_UV_ENV_ACTIVATION_DIR=""
+
 # Only set up if auto-uv-env is available
 if command -v auto-uv-env >/dev/null 2>&1; then
     # Function to check and activate UV environments
     auto_uv_env() {
+        # Performance optimization: Skip if no pyproject.toml
+        if [[ ! -f "pyproject.toml" ]]; then
+            # Handle deactivation if we left a Python project
+            if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -n "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" ]]; then
+                # Only deactivate if we've actually left the project tree
+                if [[ "$PWD" != "${_AUTO_UV_ENV_ACTIVATION_DIR}"* ]]; then
+                    # Deactivate and clean up
+                    if command -v deactivate >/dev/null 2>&1; then
+                        deactivate
+                    fi
+                    unset _AUTO_UV_ENV_ACTIVATION_DIR
+                    unset AUTO_UV_ENV_PYTHON_VERSION
+                    [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
+                fi
+            fi
+            return 0
+        fi
+
         # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
         if [[ -z "${VIRTUAL_ENV:-}" ]] && [[ -n "${AUTO_UV_ENV_PYTHON_VERSION:-}" ]]; then
             unset AUTO_UV_ENV_PYTHON_VERSION
@@ -36,14 +57,11 @@ if command -v auto-uv-env >/dev/null 2>&1; then
 
             # Handle deactivation
             if [[ -n "$deactivate" ]]; then
-                echo "DEBUG: Inside deactivate block. VIRTUAL_ENV before deactivate: ${VIRTUAL_ENV:-unset}" >&2
                 if command -v deactivate >/dev/null 2>&1; then
                     deactivate
                 fi
-                echo "DEBUG: VIRTUAL_ENV after deactivate: ${VIRTUAL_ENV:-unset}" >&2
-                echo "DEBUG: AUTO_UV_ENV_PYTHON_VERSION before unset: ${AUTO_UV_ENV_PYTHON_VERSION:-unset}" >&2
+                unset _AUTO_UV_ENV_ACTIVATION_DIR
                 unset AUTO_UV_ENV_PYTHON_VERSION
-                echo "DEBUG: AUTO_UV_ENV_PYTHON_VERSION after unset: ${AUTO_UV_ENV_PYTHON_VERSION:-unset}" >&2
                 [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
                 return 0
             fi
@@ -75,6 +93,8 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             # Handle activation
             if [[ -n "$activate_path" ]] && [[ -f "$activate_path/bin/activate" ]]; then
                 source "$activate_path/bin/activate"
+                # Track where we activated from
+                export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
                 local auto_uv_env_python_version_val
                 auto_uv_env_python_version_val=$(python --version 2>&1 | cut -d' ' -f2)
                 if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then

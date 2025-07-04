@@ -4,10 +4,33 @@
 # Add this to your ~/.config/fish/config.fish:
 #   source (brew --prefix)/share/auto-uv-env/auto-uv-env.fish
 
+# State tracking for proper deactivation
+set -gx _AUTO_UV_ENV_ACTIVATION_DIR ""
+
 # Only set up if auto-uv-env is available
 if command -v auto-uv-env >/dev/null 2>&1
     # Function to check and activate UV environments
     function auto_uv_env
+        # Performance optimization: Skip if no pyproject.toml
+        if not test -f "pyproject.toml"
+            # Handle deactivation if we left a Python project
+            if test -n "$VIRTUAL_ENV"; and test -n "$_AUTO_UV_ENV_ACTIVATION_DIR"
+                # Only deactivate if we've actually left the project tree
+                if not string match -q "$_AUTO_UV_ENV_ACTIVATION_DIR*" "$PWD"
+                    # Deactivate and clean up
+                    if command -v deactivate >/dev/null 2>&1
+                        deactivate
+                    end
+                    set -e _AUTO_UV_ENV_ACTIVATION_DIR
+                    set -e AUTO_UV_ENV_PYTHON_VERSION
+                    if test "$AUTO_UV_ENV_QUIET" != "1"
+                        echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
+                    end
+                end
+            end
+            return 0
+        end
+
         # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
         if test -z "$VIRTUAL_ENV"; and test -n "$AUTO_UV_ENV_PYTHON_VERSION"
             set -e AUTO_UV_ENV_PYTHON_VERSION
@@ -56,6 +79,7 @@ if command -v auto-uv-env >/dev/null 2>&1
                 if command -v deactivate >/dev/null 2>&1
                     deactivate
                 end
+                set -e _AUTO_UV_ENV_ACTIVATION_DIR
                 set -e AUTO_UV_ENV_PYTHON_VERSION
                 if test "$AUTO_UV_ENV_QUIET" != "1"
                     echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
@@ -96,6 +120,8 @@ if command -v auto-uv-env >/dev/null 2>&1
             # Handle activation
             if test -n "$activate_path" -a -f "$activate_path/bin/activate.fish"
                 source "$activate_path/bin/activate.fish"
+                # Track where we activated from
+                set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
                 if test "$AUTO_UV_ENV_QUIET" != "1"
                     set -l python_version (python --version 2>&1 | cut -d' ' -f2)
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
@@ -106,6 +132,8 @@ if command -v auto-uv-env >/dev/null 2>&1
                 set -gx VIRTUAL_ENV $activate_path
                 set -gx _OLD_VIRTUAL_PATH $PATH
                 set -gx PATH "$activate_path/bin" $PATH
+                # Track where we activated from
+                set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
                 if test "$AUTO_UV_ENV_QUIET" != "1"
                     set -l python_version (python --version 2>&1 | cut -d' ' -f2)
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
