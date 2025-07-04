@@ -20,11 +20,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        shell: [bash, zsh]
-        exclude:
-          # macOS runners have issues with zsh in CI
-          - os: macos-latest
-            shell: zsh
+        shell: [bash]
+        # Note: zsh is not pre-installed on GitHub runners
 
     steps:
     - name: Checkout code
@@ -43,7 +40,7 @@ jobs:
         echo "Testing installer with HOME=$HOME"
 
         # Run the installer
-        ${{ matrix.shell }} ./docs/install.sh --verbose
+        bash ./docs/install.sh --verbose
 
         # Verify installation
         if [ ! -f "$HOME/.local/bin/auto-uv-env" ]; then
@@ -56,21 +53,11 @@ jobs:
           exit 1
         fi
 
-        # Check shell integration
-        case "${{ matrix.shell }}" in
-          bash)
-            if ! grep -q "auto-uv-env" "$HOME/.bashrc" 2>/dev/null; then
-              echo "Error: bash integration not added"
-              exit 1
-            fi
-            ;;
-          zsh)
-            if ! grep -q "auto-uv-env" "$HOME/.zshrc" 2>/dev/null; then
-              echo "Error: zsh integration not added"
-              exit 1
-            fi
-            ;;
-        esac
+        # Check shell integration (always bash for now)
+        if ! grep -q "auto-uv-env" "$HOME/.bashrc" 2>/dev/null; then
+          echo "Error: bash integration not added"
+          exit 1
+        fi
 
         echo "Installation test passed!"
 
@@ -83,10 +70,10 @@ jobs:
         export AUTO_UV_ENV_SHARE_DIR="$HOME/.local/share/auto-uv-env"
 
         # Install first
-        ${{ matrix.shell }} ./docs/install.sh --quiet
+        bash ./docs/install.sh --quiet
 
         # Run uninstaller with auto-confirm
-        echo "y" | ${{ matrix.shell }} ./docs/uninstall.sh
+        echo "y" | bash ./docs/uninstall.sh
 
         # Verify removal
         if [ -f "$HOME/.local/bin/auto-uv-env" ]; then

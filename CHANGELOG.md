@@ -11,9 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correctly set and unset AUTO_UV_ENV_PYTHON_VERSION in Bash, Zsh, and Fish shell integrations.
 
 
-
-
-
 ## [1.0.3] - 2025-07-03
 
 ### Fixed

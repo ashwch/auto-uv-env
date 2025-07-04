@@ -139,7 +139,7 @@ download() {
                 return
             fi
         fi
-        curl -#fL "$url" -o "$output"
+        curl -sSfL "$url" -o "$output" || err "download failed: $url"
     elif check_cmd wget; then
         wget -q --show-progress "$url" -O "$output"
     else
@@ -167,7 +167,7 @@ download_and_extract() {
     tar -xzf "$archive_file" -C "$temp_dir"
 
     # The archive extracts to auto-uv-env-main/
-    echo "$temp_dir/auto-uv-env-main"
+    printf '%s' "$temp_dir/auto-uv-env-main"
 }
 
 # Install auto-uv-env files
