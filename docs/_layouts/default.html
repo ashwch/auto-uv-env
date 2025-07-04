@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: site.lang | default: "en" }}">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+
+  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@300;400&display=swap" rel="stylesheet">
+</head>
+<body>
+  <script>
+    // Theme detection
+    (function() {
+      const theme = localStorage.getItem('theme') ||
+                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+
+  <header class="site-header">
+    <div class="wrapper">
+      <a class="site-title" href="{{ "/" | relative_url }}">{{ site.title }}</a>
+      <nav class="site-nav">
+        <a class="page-link" href="{{ "/" | relative_url }}">Home</a>
+        <a class="page-link" href="{{ "/installation/" | relative_url }}">Installation</a>
+        <a class="page-link" href="{{ "/usage/" | relative_url }}">Usage</a>
+        <a class="page-link" href="{{ "/contributing/" | relative_url }}">Contributing</a>
+        <a class="page-link" href="https://github.com/ashwch/auto-uv-env">GitHub</a>
+        <a class="page-link author-link" href="https://ashwch.com">ashwch.com</a>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <span class="sun">☀️</span>
+          <span class="moon">🌙</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <div class="wrapper">
+      {{ content }}
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrapper">
+      <p>&copy; {{ site.time | date: '%Y' }} <a href="https://ashwch.com">Ashwini Chaudhary</a> |
+         <a href="https://github.com/ashwch/auto-uv-env">View on GitHub</a> |
+         <a href="https://github.com/ashwch/auto-uv-env/blob/main/LICENSE">MIT License</a>
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    }
+  </script>
+</body>
+</html>

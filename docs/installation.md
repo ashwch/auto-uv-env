@@ -4,16 +4,34 @@ title: Installation
 permalink: /installation/
 ---
 
-# Installation
+# Installation Guide
 
-## Using Homebrew (Recommended)
+## Prerequisites
+
+Before installing auto-uv-env, you need to have UV installed:
 
 ```bash
+# Install UV (required)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+## Installation Methods
+
+### Option 1: Homebrew (Recommended) 🍺
+
+The easiest way to install auto-uv-env:
+
+```bash
+# Add the tap
 brew tap ashwch/tap
+
+# Install auto-uv-env
 brew install auto-uv-env
 ```
 
-## Manual Installation
+### Option 2: Manual Installation
+
+For systems without Homebrew or if you prefer manual installation:
 
 ```bash
 # Clone the repository
@@ -29,25 +47,133 @@ sudo mkdir -p /usr/local/share/auto-uv-env
 sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
 ```
 
-## Shell Setup
+### Option 3: Direct Download
 
-### Zsh (~/.zshrc)
-```zsh
-source $(brew --prefix)/share/auto-uv-env/auto-uv-env.zsh
-```
-
-### Bash (~/.bashrc)
 ```bash
+# Download the latest release
+curl -LO https://github.com/ashwch/auto-uv-env/archive/v1.0.4.tar.gz
+tar -xzf v1.0.4.tar.gz
+cd auto-uv-env-1.0.4
+
+# Install
+sudo cp auto-uv-env /usr/local/bin/
+sudo mkdir -p /usr/local/share/auto-uv-env
+sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
+```
+
+## Shell Integration Setup
+
+After installation, add auto-uv-env to your shell configuration:
+
+### Zsh Configuration
+
+Add to your `~/.zshrc`:
+
+```zsh
+# For Homebrew installation
+source $(brew --prefix)/share/auto-uv-env/auto-uv-env.zsh
+
+# For manual installation
+source /usr/local/share/auto-uv-env/auto-uv-env.zsh
+```
+
+### Bash Configuration
+
+Add to your `~/.bashrc` or `~/.bash_profile`:
+
+```bash
+# For Homebrew installation
 source $(brew --prefix)/share/auto-uv-env/auto-uv-env.bash
+
+# For manual installation
+source /usr/local/share/auto-uv-env/auto-uv-env.bash
 ```
 
-### Fish (~/.config/fish/config.fish)
+### Fish Configuration
+
+Add to your `~/.config/fish/config.fish`:
+
 ```fish
+# For Homebrew installation
 source (brew --prefix)/share/auto-uv-env/auto-uv-env.fish
+
+# For manual installation
+source /usr/local/share/auto-uv-env/auto-uv-env.fish
 ```
 
-## Requirements
+## Verify Installation
 
-- [UV](https://github.com/astral-sh/uv) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- A shell (Zsh, Bash, or Fish)
-- Python projects with `pyproject.toml`
+After setup, reload your shell and verify:
+
+```bash
+# Reload shell configuration
+source ~/.zshrc  # or ~/.bashrc for Bash
+
+# Check version
+auto-uv-env --version
+
+# Test in a Python project
+cd /path/to/python/project
+# Should automatically activate environment
+```
+
+## Updating
+
+### With Homebrew
+
+```bash
+brew update
+brew upgrade auto-uv-env
+```
+
+### Manual Update
+
+```bash
+cd /path/to/auto-uv-env
+git pull origin main
+sudo cp auto-uv-env /usr/local/bin/
+sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
+```
+
+## Uninstallation
+
+### With Homebrew
+
+```bash
+brew uninstall auto-uv-env
+brew untap ashwch/tap
+```
+
+### Manual Uninstallation
+
+```bash
+# Remove the executable
+sudo rm /usr/local/bin/auto-uv-env
+
+# Remove shell integration files
+sudo rm -rf /usr/local/share/auto-uv-env
+
+# Remove from shell configuration
+# Edit ~/.zshrc, ~/.bashrc, or ~/.config/fish/config.fish
+# and remove the source line
+```
+
+## Troubleshooting
+
+### Command not found
+
+If you get "command not found" after installation:
+- Ensure `/usr/local/bin` is in your PATH
+- For Homebrew, ensure `$(brew --prefix)/bin` is in your PATH
+
+### UV not found
+
+If you get "UV not found" error:
+- Install UV: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Ensure UV is in your PATH
+
+### Shell integration not working
+
+- Make sure you've reloaded your shell configuration
+- Check that the source path is correct for your installation method
+- Try running the command manually to see any error messages

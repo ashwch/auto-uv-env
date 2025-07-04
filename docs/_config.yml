@@ -1,6 +1,5 @@
 title: auto-uv-env
 description: Automatic UV-based Python virtual environment management
-theme: minima
 url: https://auto-uv-env.ashwch.com
 baseurl: ""
 
@@ -11,14 +10,12 @@ plugins:
 markdown: kramdown
 highlighter: rouge
 
-header_pages:
-  - index.md
-  - installation.md
-  - usage.md
-  - contributing.md
+# Remove theme as we're using custom layouts
+# theme: minima
 
 exclude:
   - README.md
   - LICENSE
   - Gemfile
   - Gemfile.lock
+  - serve-local.sh
