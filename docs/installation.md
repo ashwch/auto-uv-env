@@ -17,9 +17,24 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ## Installation Methods
 
-### Option 1: Homebrew (macOS/Linux) 🍺
+### Option 1: Quick Install (Recommended) 🚀
 
-The easiest way to install auto-uv-env:
+The simplest way to install auto-uv-env on any system:
+
+```bash
+curl -LsSf https://auto-uv-env.ashwch.com/install.sh | sh
+```
+
+This installer:
+- Works on macOS, Linux, and BSD systems
+- Detects your platform automatically
+- Installs to `~/.local/bin` by default (respects XDG)
+- Sets up shell integration for bash, zsh, and fish
+- Suggests Homebrew on macOS (if available)
+
+### Option 2: Homebrew (macOS preferred) 🍺
+
+For macOS users with Homebrew:
 
 ```bash
 # Add the tap
@@ -29,101 +44,50 @@ brew tap ashwch/tap
 brew install auto-uv-env
 ```
 
-### Option 2: Install Script (Universal)
+Benefits:
+- Automatic updates with `brew upgrade`
+- Clean uninstallation
+- Managed dependencies
 
-Works on Ubuntu, Debian, RHEL, Fedora, CentOS, Rocky Linux, AlmaLinux, and more:
+### Option 3: Install from GitHub
+
+If you prefer to use GitHub directly:
 
 ```bash
-# Install latest version
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
-
-# Install specific version
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- 1.0.4
-
-# Install with options
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- --help
+curl -LsSf https://raw.githubusercontent.com/ashwch/auto-uv-env/main/docs/install.sh | sh
 ```
 
-The install script will:
-- Detect your operating system
-- Build native packages (.deb or .rpm) when possible
-- Fall back to universal installation if needed
-- Set up shell integration automatically
-- Check for required dependencies
+### Option 4: Manual Installation
 
-### Option 3: Manual Installation
-
-For systems without Homebrew or if you prefer manual installation:
+For full control over the installation:
 
 ```bash
 # Clone the repository
 git clone https://github.com/ashwch/auto-uv-env.git
 cd auto-uv-env
 
-# Copy the executable to your PATH
+# Copy files manually
 sudo cp auto-uv-env /usr/local/bin/
 sudo chmod +x /usr/local/bin/auto-uv-env
-
-# Copy shell integration files
 sudo mkdir -p /usr/local/share/auto-uv-env
 sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
 ```
 
-### Option 4: Linux Distribution Packages
+## Installation Options
 
-#### Ubuntu/Debian (.deb)
-
-```bash
-# Method 1: Build and install locally
-git clone https://github.com/ashwch/auto-uv-env.git
-cd auto-uv-env
-./scripts/build-deb.sh
-sudo apt install ./auto-uv-env_*.deb
-
-# Method 2: Download from releases (when available)
-wget https://github.com/ashwch/auto-uv-env/releases/latest/download/auto-uv-env_1.0.4_all.deb
-sudo apt install ./auto-uv-env_1.0.4_all.deb
-```
-
-#### RHEL/Fedora/CentOS/Rocky/AlmaLinux (.rpm)
+The installer supports several options:
 
 ```bash
-# Method 1: Build and install locally
-git clone https://github.com/ashwch/auto-uv-env.git
-cd auto-uv-env
-./scripts/build-rpm.sh
-sudo dnf install ./auto-uv-env-*.noarch.rpm  # Fedora
-sudo yum localinstall ./auto-uv-env-*.noarch.rpm  # RHEL/CentOS
+# Show help
+curl -LsSf https://auto-uv-env.ashwch.com/install.sh | sh -s -- --help
 
-# Method 2: Download from releases (when available)
-wget https://github.com/ashwch/auto-uv-env/releases/latest/download/auto-uv-env-1.0.4-1.noarch.rpm
-sudo dnf install ./auto-uv-env-1.0.4-1.noarch.rpm
-```
+# Verbose output
+curl -LsSf https://auto-uv-env.ashwch.com/install.sh | sh -s -- --verbose
 
-#### Arch Linux (AUR)
-
-```bash
-# Using yay
-yay -S auto-uv-env
-
-# Using manual build
-git clone https://aur.archlinux.org/auto-uv-env.git
-cd auto-uv-env
-makepkg -si
-```
-
-### Option 5: Direct Download
-
-```bash
-# Download the latest release
-curl -LO https://github.com/ashwch/auto-uv-env/archive/v1.0.4.tar.gz
-tar -xzf v1.0.4.tar.gz
-cd auto-uv-env-1.0.4
-
-# Install
-sudo cp auto-uv-env /usr/local/bin/
-sudo mkdir -p /usr/local/share/auto-uv-env
-sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
+# Custom installation directories
+AUTO_UV_ENV_BIN_DIR=/opt/bin \
+AUTO_UV_ENV_SHARE_DIR=/opt/share/auto-uv-env \
+curl -LsSf https://auto-uv-env.ashwch.com/install.sh | sh
 ```
 
 ## Shell Integration Setup
@@ -202,6 +166,13 @@ sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
 
 ## Uninstallation
 
+### Using the Uninstaller
+
+```bash
+# If installed with the install script
+curl -LsSf https://auto-uv-env.ashwch.com/uninstall.sh | sh
+```
+
 ### With Homebrew
 
 ```bash
@@ -214,13 +185,17 @@ brew untap ashwch/tap
 ```bash
 # Remove the executable
 sudo rm /usr/local/bin/auto-uv-env
+# Or if installed in ~/.local/bin
+rm ~/.local/bin/auto-uv-env
 
 # Remove shell integration files
 sudo rm -rf /usr/local/share/auto-uv-env
+# Or if installed in ~/.local/share
+rm -rf ~/.local/share/auto-uv-env
 
 # Remove from shell configuration
 # Edit ~/.zshrc, ~/.bashrc, or ~/.config/fish/config.fish
-# and remove the source line
+# and remove the auto-uv-env source line
 ```
 
 ## Troubleshooting

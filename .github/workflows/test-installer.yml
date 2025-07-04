@@ -1,0 +1,163 @@
+name: Test Installer
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/install.sh'
+      - 'docs/uninstall.sh'
+      - '.github/workflows/test-installer.yml'
+  pull_request:
+    paths:
+      - 'docs/install.sh'
+      - 'docs/uninstall.sh'
+      - '.github/workflows/test-installer.yml'
+
+jobs:
+  test-installer:
+    name: Test Install Script
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        shell: [bash, zsh]
+        exclude:
+          # macOS runners have issues with zsh in CI
+          - os: macos-latest
+            shell: zsh
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Test installer in fresh environment
+      run: |
+        # Create a temporary home directory
+        export TEST_HOME=$(mktemp -d)
+        export HOME=$TEST_HOME
+
+        # Set installation directories
+        export AUTO_UV_ENV_BIN_DIR="$HOME/.local/bin"
+        export AUTO_UV_ENV_SHARE_DIR="$HOME/.local/share/auto-uv-env"
+
+        echo "Testing installer with HOME=$HOME"
+
+        # Run the installer
+        ${{ matrix.shell }} ./docs/install.sh --verbose
+
+        # Verify installation
+        if [ ! -f "$HOME/.local/bin/auto-uv-env" ]; then
+          echo "Error: auto-uv-env binary not installed"
+          exit 1
+        fi
+
+        if [ ! -d "$HOME/.local/share/auto-uv-env" ]; then
+          echo "Error: share directory not created"
+          exit 1
+        fi
+
+        # Check shell integration
+        case "${{ matrix.shell }}" in
+          bash)
+            if ! grep -q "auto-uv-env" "$HOME/.bashrc" 2>/dev/null; then
+              echo "Error: bash integration not added"
+              exit 1
+            fi
+            ;;
+          zsh)
+            if ! grep -q "auto-uv-env" "$HOME/.zshrc" 2>/dev/null; then
+              echo "Error: zsh integration not added"
+              exit 1
+            fi
+            ;;
+        esac
+
+        echo "Installation test passed!"
+
+    - name: Test uninstaller
+      run: |
+        # Use the same test home
+        export TEST_HOME=$(mktemp -d)
+        export HOME=$TEST_HOME
+        export AUTO_UV_ENV_BIN_DIR="$HOME/.local/bin"
+        export AUTO_UV_ENV_SHARE_DIR="$HOME/.local/share/auto-uv-env"
+
+        # Install first
+        ${{ matrix.shell }} ./docs/install.sh --quiet
+
+        # Run uninstaller with auto-confirm
+        echo "y" | ${{ matrix.shell }} ./docs/uninstall.sh
+
+        # Verify removal
+        if [ -f "$HOME/.local/bin/auto-uv-env" ]; then
+          echo "Error: binary not removed"
+          exit 1
+        fi
+
+        if [ -d "$HOME/.local/share/auto-uv-env" ]; then
+          echo "Error: share directory not removed"
+          exit 1
+        fi
+
+        echo "Uninstallation test passed!"
+
+  test-macos-homebrew-detection:
+    name: Test macOS Homebrew Detection
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Test Homebrew detection
+      run: |
+        # The installer should detect Homebrew and suggest using it
+        export TEST_HOME=$(mktemp -d)
+        export HOME=$TEST_HOME
+
+        # Run installer and expect it to suggest Homebrew
+        echo "n" | bash ./docs/install.sh | tee output.log
+
+        if ! grep -q "Homebrew detected" output.log; then
+          echo "Error: Installer did not detect Homebrew"
+          exit 1
+        fi
+
+        if ! grep -q "brew tap ashwch/tap" output.log; then
+          echo "Error: Installer did not suggest Homebrew installation"
+          exit 1
+        fi
+
+        echo "Homebrew detection test passed!"
+
+  test-installation-paths:
+    name: Test Custom Installation Paths
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Test custom paths
+      run: |
+        export TEST_HOME=$(mktemp -d)
+        export HOME=$TEST_HOME
+
+        # Test with custom paths
+        export AUTO_UV_ENV_BIN_DIR="$HOME/custom/bin"
+        export AUTO_UV_ENV_SHARE_DIR="$HOME/custom/share"
+
+        bash ./docs/install.sh --verbose
+
+        # Verify custom paths were used
+        if [ ! -f "$HOME/custom/bin/auto-uv-env" ]; then
+          echo "Error: Binary not installed to custom path"
+          exit 1
+        fi
+
+        if [ ! -d "$HOME/custom/share" ]; then
+          echo "Error: Share dir not created at custom path"
+          exit 1
+        fi
+
+        echo "Custom path installation test passed!"

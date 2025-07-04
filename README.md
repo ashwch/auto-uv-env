@@ -20,72 +20,48 @@ Automatic UV-based Python virtual environment management for your shell. No more
 
 ## Installation
 
-### Using Homebrew (macOS/Linux)
+### Quick Install (Recommended)
+
+```bash
+# Install auto-uv-env
+curl -LsSf https://auto-uv-env.ashwch.com/install.sh | sh
+```
+
+### Using Homebrew (macOS preferred)
 
 ```bash
 brew tap ashwch/tap
 brew install auto-uv-env
 ```
 
-### Using Install Script (Ubuntu/Debian/RHEL/Fedora)
+### Alternative Installation Methods
+
+#### Install from GitHub
 
 ```bash
-# Install latest version
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
-
-# Install specific version
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- 1.0.4
+# Using the installer from GitHub
+curl -LsSf https://raw.githubusercontent.com/ashwch/auto-uv-env/main/docs/install.sh | sh
 ```
 
-### Linux (Universal Installer)
-
-Works on Ubuntu, Debian, RHEL, CentOS, Fedora, Rocky Linux, AlmaLinux:
+#### Manual Installation
 
 ```bash
-# Install latest version
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
-
-# Install specific version
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash -s -- 1.0.4
-```
-
-### Ubuntu/Debian (.deb package)
-
-```bash
-# Build and install locally
+# Clone and install manually
 git clone https://github.com/ashwch/auto-uv-env.git
 cd auto-uv-env
-./scripts/build-deb.sh
-sudo apt install ./auto-uv-env_*.deb
-```
-
-### RHEL/Fedora/CentOS (.rpm package)
-
-```bash
-# Build and install locally
-git clone https://github.com/ashwch/auto-uv-env.git
-cd auto-uv-env
-./scripts/build-rpm.sh
-sudo dnf install ./auto-uv-env-*.noarch.rpm  # Fedora
-sudo yum localinstall ./auto-uv-env-*.noarch.rpm  # RHEL/CentOS
-```
-
-### Manual Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/ashwch/auto-uv-env.git
-cd auto-uv-env
-
-# Use the install script with options
-./scripts/install.sh --help  # See all options
-./scripts/install.sh --universal  # Force universal install
-
-# Or manually:
 sudo cp auto-uv-env /usr/local/bin/
-sudo chmod +x /usr/local/bin/auto-uv-env
 sudo mkdir -p /usr/local/share/auto-uv-env
 sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
+```
+
+### Uninstallation
+
+```bash
+# If installed with the installer script
+curl -LsSf https://auto-uv-env.ashwch.com/uninstall.sh | sh
+
+# If installed with Homebrew
+brew uninstall auto-uv-env
 ```
 
 ## Setup

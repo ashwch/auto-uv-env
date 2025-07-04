@@ -25,20 +25,15 @@ Automatic UV-based Python virtual environment management for your shell. No more
 
 ### 1. Install auto-uv-env
 
-**macOS/Linux with Homebrew:**
+**Quick install (any system):**
+```bash
+curl -LsSf https://auto-uv-env.ashwch.com/install.sh | sh
+```
+
+**macOS with Homebrew (recommended for Mac):**
 ```bash
 brew tap ashwch/tap
 brew install auto-uv-env
-```
-
-**Ubuntu/Debian:**
-```bash
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
-```
-
-**RHEL/Fedora:**
-```bash
-curl -sSL https://raw.githubusercontent.com/ashwch/auto-uv-env/main/scripts/install.sh | bash
 ```
 
 ### 2. Add to your shell
