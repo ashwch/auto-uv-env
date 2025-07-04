@@ -18,7 +18,7 @@ Automatic UV-based Python virtual environment management for your shell. No more
 - 📦 **pyproject.toml aware** - Reads Python version from `requires-python`
 - 🎯 **Zero configuration** - Works out of the box
 - 🐚 **Multi-shell support** - Works with Zsh, Bash, and Fish
-- ⚡ **Fast** - Adds <5ms to directory changes (optimized with fast-path)
+- ⚡ **Performance optimized** - Minimal overhead: 8.6ms on shell startup, 1.3ms per directory change
 - 🧹 **Clean** - Automatically deactivates when leaving Python projects
 
 ## Quick Start
@@ -76,9 +76,11 @@ cd my-python-project/
 ## Features
 
 ### 🚀 Performance Optimized
-- **Fast-path optimization**: Non-Python directories add only ~4ms overhead
-- **Smart caching**: Avoids redundant checks
-- **Minimal dependencies**: Pure shell implementation
+- **Shell startup overhead**: 8.6ms (normal mode), 1.6ms (quiet mode)
+- **Directory change overhead**: 1.3ms (normal mode), 0.4ms (quiet mode)
+- **Fast-path optimization**: Skips processing for non-Python directories
+- **Smart caching**: Avoids redundant checks when staying in same project
+- **Direct activation**: Bypasses script call when .venv already exists
 
 ### 🎯 Intelligent Activation
 - **Project-aware**: Only activates in directories with `pyproject.toml`
