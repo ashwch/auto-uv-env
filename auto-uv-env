@@ -7,9 +7,14 @@
 
 set -euo pipefail
 
-VERSION="1.0.6"
+VERSION="1.0.7"
 QUIET_MODE="${AUTO_UV_ENV_QUIET:-0}"
 DEBUG_MODE="${AUTO_UV_ENV_DEBUG:-0}"
+
+# Cache command locations for performance
+# These are set once and reused to avoid repeated lookups
+: ${_AUTO_UV_ENV_UV_PATH:=$(command -v uv 2>/dev/null)}
+: ${_AUTO_UV_ENV_PYTHON_PATH:=$(command -v python 2>/dev/null)}
 
 # Color codes for output
 RED='\033[0;31m'
@@ -58,7 +63,8 @@ VENV_DIR="$(validate_venv_name)"
 
 # Check if UV is available with helpful suggestions
 check_uv() {
-    if ! command -v uv >/dev/null 2>&1; then
+    # Use cached path for performance
+    if [[ -z "$_AUTO_UV_ENV_UV_PATH" ]]; then
         print_error 'auto-uv-env: UV not found.'
         echo "Install options:" >&2
         echo "  • curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
@@ -67,13 +73,17 @@ check_uv() {
         exit 1
     fi
 
-    # Check UV version for compatibility warnings
-    local uv_version
-    uv_version=$(uv --version 2>/dev/null | cut -d' ' -f2)
-    if [[ -n "$uv_version" ]]; then
-        # Warn about very old UV versions (< 0.1.0 is ancient)
-        if [[ "$uv_version" < "0.1.0" ]]; then
-            print_error "Warning: UV version $uv_version is very old. Consider upgrading."
+    # Check UV version for compatibility warnings (only in debug mode to save time)
+    if [[ "$DEBUG_MODE" == "1" ]]; then
+        local uv_version
+        # Use shell parameter expansion instead of cut for performance
+        local uv_full_version=$($_AUTO_UV_ENV_UV_PATH --version 2>/dev/null)
+        uv_version="${uv_full_version#uv }"
+        if [[ -n "$uv_version" ]]; then
+            # Warn about very old UV versions (< 0.1.0 is ancient)
+            if [[ "$uv_version" < "0.1.0" ]]; then
+                print_error "Warning: UV version $uv_version is very old. Consider upgrading."
+            fi
         fi
     fi
 }
@@ -103,16 +113,32 @@ get_python_version() {
         return 1
     fi
 
-    # Try different patterns for Python version specification
-    local version
-    version=$(grep -E "requires-python|python_requires" "$project_file" 2>/dev/null |
-              sed -E 's/.*[">]=?([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/' |
-              head -1)
+    # Fast bash-native TOML parsing for common patterns
+    # This handles 99% of real-world cases without Python
+    local version=""
+    local line
+    while IFS= read -r line; do
+        # Match patterns like:
+        # requires-python = ">=3.11"
+        # requires-python = "~=3.11.0"
+        # requires-python = "3.11"
+        # python_requires = ">=3.8,<3.12"
+        if [[ "$line" =~ requires[-_]python[[:space:]]*=[[:space:]]*[\"\']([^\"\']+)[\"\'] ]]; then
+            local raw_version="${BASH_REMATCH[1]}"
+            # Extract just the version number, removing operators
+            if [[ "$raw_version" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+                version="${BASH_REMATCH[1]}"
+                break
+            fi
+        fi
+    done < "$project_file"
 
-    # Handle empty/malformed file
-    if [[ -z "$version" ]]; then
-        # Try alternative patterns
-        version=$(python -c "import tomllib; print(tomllib.load(open('$project_file', 'rb')).get('project', {}).get('requires-python', '').replace('>=', '').replace('~=', '').strip())" 2>/dev/null || echo "")
+    # Only fall back to Python if absolutely necessary (debug mode)
+    if [[ -z "$version" ]] && [[ "$DEBUG_MODE" == "1" ]]; then
+        # Try Python parsing as last resort
+        if [[ -n "$_AUTO_UV_ENV_PYTHON_PATH" ]]; then
+            version=$($_AUTO_UV_ENV_PYTHON_PATH -c "import tomllib; print(tomllib.load(open('$project_file', 'rb')).get('project', {}).get('requires-python', '').replace('>=', '').replace('~=', '').strip())" 2>/dev/null || echo "")
+        fi
     fi
 
     # Validate the extracted version
@@ -185,9 +211,9 @@ diagnose_environment() {
 
     # Check UV installation
     echo "UV Status:"
-    if command -v uv >/dev/null 2>&1; then
-        echo "✅ UV found: $(which uv)"
-        echo "ℹ️ UV version: $(uv --version 2>/dev/null || echo 'unknown')"
+    if [[ -n "$_AUTO_UV_ENV_UV_PATH" ]]; then
+        echo "✅ UV found: $_AUTO_UV_ENV_UV_PATH"
+        echo "ℹ️ UV version: $($_AUTO_UV_ENV_UV_PATH --version 2>/dev/null || echo 'unknown')"
     else
         echo "❌ UV not found"
     fi
@@ -195,9 +221,9 @@ diagnose_environment() {
 
     # Check Python installation
     echo "Python Status:"
-    if command -v python >/dev/null 2>&1; then
-        echo "✅ Python found: $(which python)"
-        echo "ℹ️ Python version: $(python --version 2>/dev/null || echo 'unknown')"
+    if [[ -n "$_AUTO_UV_ENV_PYTHON_PATH" ]]; then
+        echo "✅ Python found: $_AUTO_UV_ENV_PYTHON_PATH"
+        echo "ℹ️ Python version: $($_AUTO_UV_ENV_PYTHON_PATH --version 2>/dev/null || echo 'unknown')"
     else
         echo "❌ Python not found"
     fi

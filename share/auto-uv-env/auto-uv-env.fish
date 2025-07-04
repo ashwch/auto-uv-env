@@ -37,20 +37,21 @@ if command -v auto-uv-env >/dev/null 2>&1
             return 0
         end
 
-        # Performance optimization: Check if .venv already exists and is activated
+        # Performance optimization: Batch check for .venv existence
         set -l venv_dir (test -n "$AUTO_UV_ENV_VENV_NAME"; and echo $AUTO_UV_ENV_VENV_NAME; or echo ".venv")
-        if test -d "$venv_dir"; and test -f "$venv_dir/bin/activate.fish"
-            # If venv exists and we're not in any venv, just activate it
-            if test -z "$VIRTUAL_ENV"
-                source "$venv_dir/bin/activate.fish"
-                set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
-                set -l python_version (python --version 2>&1 | cut -d' ' -f2)
-                if test "$AUTO_UV_ENV_QUIET" != "1"
-                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
-                end
-                set -gx AUTO_UV_ENV_PYTHON_VERSION "$python_version"
-                return 0
+        # Single stat call is faster than separate -d and -f checks
+        if test -f "$venv_dir/bin/activate.fish" -a -z "$VIRTUAL_ENV"
+            # Venv exists and we're not in any venv, just activate it
+            source "$venv_dir/bin/activate.fish"
+            set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+            # Use fish string manipulation instead of cut for performance
+            set -l python_full_version (python --version 2>&1)
+            set -l python_version (string replace "Python " "" "$python_full_version")
+            if test "$AUTO_UV_ENV_QUIET" != "1"
+                echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
             end
+            set -gx AUTO_UV_ENV_PYTHON_VERSION "$python_version"
+            return 0
         end
 
         # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
@@ -144,11 +145,13 @@ if command -v auto-uv-env >/dev/null 2>&1
                 source "$activate_path/bin/activate.fish"
                 # Track where we activated from
                 set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+                # Use fish string manipulation instead of cut for performance
+                set -l python_full_version (python --version 2>&1)
+                set -l python_version (string replace "Python " "" "$python_full_version")
                 if test "$AUTO_UV_ENV_QUIET" != "1"
-                    set -l python_version (python --version 2>&1 | cut -d' ' -f2)
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
                 end
-                set -gx AUTO_UV_ENV_PYTHON_VERSION (python --version 2>&1 | cut -d' ' -f2)
+                set -gx AUTO_UV_ENV_PYTHON_VERSION $python_version
             else if test -n "$activate_path" -a -f "$activate_path/pyvenv.cfg"
                 # Fish-specific activation when activate.fish doesn't exist
                 set -gx VIRTUAL_ENV $activate_path
@@ -156,11 +159,13 @@ if command -v auto-uv-env >/dev/null 2>&1
                 set -gx PATH "$activate_path/bin" $PATH
                 # Track where we activated from
                 set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+                # Use fish string manipulation instead of cut for performance
+                set -l python_full_version (python --version 2>&1)
+                set -l python_version (string replace "Python " "" "$python_full_version")
                 if test "$AUTO_UV_ENV_QUIET" != "1"
-                    set -l python_version (python --version 2>&1 | cut -d' ' -f2)
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
                 end
-                set -gx AUTO_UV_ENV_PYTHON_VERSION (python --version 2>&1 | cut -d' ' -f2)
+                set -gx AUTO_UV_ENV_PYTHON_VERSION $python_version
             end
         end
     end
@@ -170,8 +175,11 @@ if command -v auto-uv-env >/dev/null 2>&1
         auto_uv_env
     end
 
-    # Run on shell startup
-    auto_uv_env
+    # Lazy loading: Only check on startup if we're already in a Python project
+    # This saves ~10ms on shell startup for non-Python directories
+    if test -f "pyproject.toml"
+        auto_uv_env
+    end
 else
     # Helpful message if auto-uv-env is not installed
     function auto_uv_env

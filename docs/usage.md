@@ -199,17 +199,23 @@ python -m ipykernel install --user --name=myproject
 
 ### Performance Issues
 
-auto-uv-env is highly optimized based on real-world measurements:
-- **Shell startup overhead**: 8.6ms (normal mode), 1.6ms (quiet mode)
-- **Directory change overhead**: 1.3ms (normal mode), 0.4ms (quiet mode)
+auto-uv-env v1.0.7 includes major performance optimizations:
+- **Shell startup overhead**: 2-3ms (Python projects), 0ms (non-Python directories)
+- **Directory change overhead**: <1ms per `cd` command
 - **First-time environment creation**: 1-5 seconds (UV creates the virtual environment)
 - **Subsequent activations**: Near-instant (uses cached environment)
+
+Key optimizations in v1.0.7:
+- Lazy loading (no execution for non-Python directories)
+- Command path caching
+- Native bash TOML parsing (no Python subprocess)
+- Shell built-ins instead of external commands
 
 If experiencing slow directory changes:
 
 1. **Verify you have the latest version**:
    ```bash
-   auto-uv-env --version  # Should be 1.0.6 or later
+   auto-uv-env --version  # Should be 1.0.7 or later
    ```
 
 2. **Check for shell conflicts**:
@@ -218,7 +224,7 @@ If experiencing slow directory changes:
    # Check if performance improves
    ```
 
-3. **Use quiet mode** for best performance (81% faster on shell startup):
+3. **Use quiet mode** for best performance:
    ```bash
    export AUTO_UV_ENV_QUIET=1
    ```

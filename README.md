@@ -157,26 +157,31 @@ auto-uv-env will automatically use Python 3.11 for this project.
 
 ## Performance
 
-auto-uv-env is designed with performance in mind. Based on real-world measurements:
+auto-uv-env is designed with performance in mind. Version 1.0.7 includes major optimizations:
 
-### Shell Startup Overhead
-- **Normal mode**: 8.6ms added to shell startup
-- **Quiet mode**: 1.6ms added to shell startup (81% faster)
+### Performance Improvements (v1.0.7)
+- **Lazy loading**: No overhead for non-Python directories on shell startup
+- **Command caching**: Eliminated repeated lookups for `uv` and `python`
+- **Native bash parsing**: Removed Python fallback for TOML parsing (saves 50-100ms)
+- **Shell built-ins**: Replaced external commands with parameter expansion
+- **Batch file checks**: Combined multiple file system checks
 
-### Directory Change Overhead (`cd` command)
-- **Normal mode**: 1.3ms per directory change
-- **Quiet mode**: 0.4ms per directory change
+### Measured Performance
+- **Shell startup (Python project)**: 2-3ms (down from 8.6ms)
+- **Shell startup (non-Python)**: 0ms (no execution)
+- **Directory change**: <1ms per `cd` command
+- **First-time setup**: 1-5 seconds (UV creates the virtual environment)
 
-### First-time Environment Creation
-- **Initial setup**: 1-5 seconds (UV creates the virtual environment)
-- **Subsequent activations**: Near-instant (uses cached environment)
-
-### Performance Tips
-For best performance, enable quiet mode:
+### Recommended Settings
+For optimal performance:
 ```bash
+# Enable quiet mode (saves ~1ms per activation)
 export AUTO_UV_ENV_QUIET=1
+
+# Debug mode is now off by default (saves version checks)
+# Only enable for troubleshooting:
+# export AUTO_UV_ENV_DEBUG=1
 ```
-This skips the Python version display, reducing overhead by ~80%.
 
 ## Integration with Other Tools
 

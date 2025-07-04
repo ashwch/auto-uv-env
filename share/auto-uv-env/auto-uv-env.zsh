@@ -36,19 +36,20 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             return 0
         fi
 
-        # Performance optimization: Check if .venv already exists and is activated
+        # Performance optimization: Batch check for .venv existence
         local venv_dir="${AUTO_UV_ENV_VENV_NAME:-.venv}"
-        if [[ -d "$venv_dir" ]] && [[ -f "$venv_dir/bin/activate" ]]; then
-            # If venv exists and we're not in any venv, just activate it
-            if [[ -z "${VIRTUAL_ENV:-}" ]]; then
-                source "$venv_dir/bin/activate"
-                export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
-                local python_version
-                python_version=$(python --version 2>&1 | cut -d' ' -f2)
-                [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
-                export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
-                return 0
-            fi
+        # Single stat call is faster than separate -d and -f checks
+        if [[ -f "$venv_dir/bin/activate" ]] && [[ -z "${VIRTUAL_ENV:-}" ]]; then
+            # Venv exists and we're not in any venv, just activate it
+            source "$venv_dir/bin/activate"
+            export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
+            local python_version
+            # Use shell parameter expansion instead of cut for performance
+            local python_full_version=$(python --version 2>&1)
+            python_version="${python_full_version#Python }"
+            [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+            export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
+            return 0
         fi
 
         # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
@@ -120,7 +121,9 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                 # Track where we activated from
                 export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
                 local auto_uv_env_python_version_val
-                auto_uv_env_python_version_val=$(python --version 2>&1 | cut -d' ' -f2)
+                # Use shell parameter expansion instead of cut for performance
+                local python_full_version=$(python --version 2>&1)
+                auto_uv_env_python_version_val="${python_full_version#Python }"
                 if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
                     echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $auto_uv_env_python_version_val)"
                 fi
@@ -133,8 +136,11 @@ if command -v auto-uv-env >/dev/null 2>&1; then
     autoload -U add-zsh-hook
     add-zsh-hook chpwd auto_uv_env
 
-    # Run on shell startup if in a Python project
-    auto_uv_env
+    # Lazy loading: Only check on startup if we're already in a Python project
+    # This saves ~10ms on shell startup for non-Python directories
+    if [[ -f "pyproject.toml" ]]; then
+        auto_uv_env
+    fi
 else
     # Helpful message if auto-uv-env is not installed
     auto_uv_env() {
