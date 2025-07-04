@@ -151,6 +151,14 @@ download() {
 # Download and extract the latest release
 download_and_extract() {
     platform="$1"
+
+    # If in test mode, use current directory
+    if [ "${AUTO_UV_ENV_TEST_MODE:-0}" = "1" ]; then
+        info "using current directory for testing"
+        printf '%s' "$(pwd)"
+        return 0
+    fi
+
     temp_dir=""
     temp_dir="$(mktemp -d)"
 

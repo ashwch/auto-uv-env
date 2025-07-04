@@ -43,6 +43,8 @@ jobs:
         touch "$HOME/.bashrc"
 
         # Run the installer with -y flag to skip prompts
+        # Set test mode to use current directory instead of downloading
+        export AUTO_UV_ENV_TEST_MODE=1
         bash ./docs/install.sh -y --verbose
 
         # Verify installation
@@ -87,6 +89,7 @@ jobs:
         touch "$HOME/.bashrc"
 
         # Install first
+        export AUTO_UV_ENV_TEST_MODE=1
         bash ./docs/install.sh -y --quiet
 
         # Run uninstaller with -y flag
@@ -120,6 +123,7 @@ jobs:
         export HOME=$TEST_HOME
 
         # First test: Rejection of direct install (default behavior)
+        export AUTO_UV_ENV_TEST_MODE=1
         printf 'n\n' | bash ./docs/install.sh > output.log 2>&1 || echo "Exit code: $?"
 
         # Debug: Show what was captured
@@ -150,6 +154,7 @@ jobs:
         mkdir -p "$HOME/.bashrc"
         touch "$HOME/.bashrc"
 
+        export AUTO_UV_ENV_TEST_MODE=1
         bash ./docs/install.sh -y > output2.log 2>&1
 
         echo "=== Test 2: --yes flag test output ==="
@@ -188,6 +193,7 @@ jobs:
         # Create .bashrc for CI
         touch "$HOME/.bashrc"
 
+        export AUTO_UV_ENV_TEST_MODE=1
         bash ./docs/install.sh -y --verbose
 
         # Verify custom paths were used
