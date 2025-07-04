@@ -42,8 +42,8 @@ jobs:
         # Create .bashrc for CI environment
         touch "$HOME/.bashrc"
 
-        # Run the installer
-        bash ./docs/install.sh --verbose
+        # Run the installer with -y flag to skip prompts
+        bash ./docs/install.sh -y --verbose
 
         # Verify installation
         if [ ! -f "$HOME/.local/bin/auto-uv-env" ]; then
@@ -87,7 +87,7 @@ jobs:
         touch "$HOME/.bashrc"
 
         # Install first
-        bash ./docs/install.sh --quiet
+        bash ./docs/install.sh -y --quiet
 
         # Run uninstaller with -y flag
         bash ./docs/uninstall.sh -y
@@ -188,7 +188,7 @@ jobs:
         # Create .bashrc for CI
         touch "$HOME/.bashrc"
 
-        bash ./docs/install.sh --verbose
+        bash ./docs/install.sh -y --verbose
 
         # Verify custom paths were used
         if [ ! -f "$HOME/custom/bin/auto-uv-env" ]; then
