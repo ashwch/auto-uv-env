@@ -34,12 +34,12 @@ fi
 
 # Logging functions
 say() {
-    printf "%s\n" "$1"
+    printf "%s\n" "$1" >&2
 }
 
 say_verbose() {
     if [ "${VERBOSE:-0}" = "1" ]; then
-        printf "%s\n" "$1"
+        printf "%s\n" "$1" >&2
     fi
 }
 
@@ -53,11 +53,11 @@ warn() {
 }
 
 success() {
-    say "${GREEN}✓${RESET} $1"
+    say "${GREEN}✓${RESET} $1" >&2
 }
 
 info() {
-    say "${BLUE}→${RESET} $1"
+    say "${BLUE}→${RESET} $1" >&2
 }
 
 # Helper functions
