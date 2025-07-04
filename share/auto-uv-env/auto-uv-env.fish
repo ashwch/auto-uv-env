@@ -13,27 +13,6 @@ if command -v auto-uv-env >/dev/null 2>&1
             set -e AUTO_UV_ENV_PYTHON_VERSION
         end
 
-        # Fast path: skip if no pyproject.toml exists
-        if not test -f "pyproject.toml"
-            # If we had a virtual env active and left the directory, deactivate
-            if test -n "$VIRTUAL_ENV"; and test "$AUTO_UV_ENV_ACTIVATED" = "1"
-                if functions -q deactivate
-                    deactivate
-                    set -e AUTO_UV_ENV_ACTIVATED
-                    set -e AUTO_UV_ENV_PYTHON_VERSION
-                    if test "$AUTO_UV_ENV_QUIET" != "1"
-                        echo -e "\033[0;33m⬇️\033[0m  Deactivated UV environment" >&2
-                    end
-                end
-            end
-            return 0
-        end
-
-        # Skip if in .auto-uv-env-ignore directory
-        if test -f ".auto-uv-env-ignore"
-            return 0
-        end
-
         set -l state_file "/tmp/auto-uv-env."(echo %self)".state"
 
         # Get state from auto-uv-env
