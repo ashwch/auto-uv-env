@@ -42,10 +42,17 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             if [[ -z "${VIRTUAL_ENV:-}" ]]; then
                 source "$venv_dir/bin/activate"
                 export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
-                local python_version
-                python_version=$(python --version 2>&1 | cut -d' ' -f2)
-                [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
-                export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
+
+                # Performance: Only get Python version if we need to display it
+                if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
+                    local python_version
+                    python_version=$(python --version 2>&1 | cut -d' ' -f2)
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                    export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
+                else
+                    # Skip version check in quiet mode
+                    export AUTO_UV_ENV_PYTHON_VERSION="unknown"
+                fi
                 return 0
             fi
         fi
