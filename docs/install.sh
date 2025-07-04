@@ -9,6 +9,7 @@ set -e
 
 # Configuration
 REPO_URL="https://github.com/ashwch/auto-uv-env"
+API_URL="https://api.github.com/repos/ashwch/auto-uv-env"
 INSTALLER_VERSION="1.0.0"
 
 # Default installation paths following XDG Base Directory Specification
@@ -156,9 +157,38 @@ download_and_extract() {
     # Clean up on exit
     trap 'rm -rf "$temp_dir"' EXIT
 
-    info "downloading auto-uv-env (latest)"
+    # Get the latest release URL
+    info "fetching latest release"
+    latest_release_url="${API_URL}/releases/latest"
 
-    archive_url="${REPO_URL}/archive/main.tar.gz"
+    # Download release info
+    if check_cmd curl; then
+        release_info=$(curl -sL "$latest_release_url")
+    elif check_cmd wget; then
+        release_info=$(wget -qO- "$latest_release_url")
+    else
+        err "need either 'curl' or 'wget' to download files"
+    fi
+
+    # Extract the tarball URL from the release info
+    # This looks for browser_download_url in the JSON
+    archive_url=$(echo "$release_info" | grep -o '"browser_download_url": *"[^"]*auto-uv-env-v[^"]*\.tar\.gz"' | sed 's/.*": *"\([^"]*\)"/\1/' | head -1)
+
+    if [ -z "$archive_url" ]; then
+        # Fallback to source tarball if no release asset found
+        tag_name=$(echo "$release_info" | grep -o '"tag_name": *"[^"]*"' | sed 's/.*": *"\([^"]*\)"/\1/')
+        if [ -n "$tag_name" ]; then
+            archive_url="${REPO_URL}/archive/refs/tags/${tag_name}.tar.gz"
+            info "downloading auto-uv-env ${tag_name}"
+        else
+            # Final fallback to main branch
+            archive_url="${REPO_URL}/archive/main.tar.gz"
+            info "downloading auto-uv-env (main branch)"
+        fi
+    else
+        info "downloading auto-uv-env (latest release)"
+    fi
+
     archive_file="$temp_dir/auto-uv-env.tar.gz"
 
     download "$archive_url" "$archive_file"
@@ -166,8 +196,14 @@ download_and_extract() {
     info "extracting archive"
     tar -xzf "$archive_file" -C "$temp_dir"
 
-    # The archive extracts to auto-uv-env-main/
-    printf '%s' "$temp_dir/auto-uv-env-main"
+    # Find the extracted directory (it could be auto-uv-env-main or auto-uv-env-vX.Y.Z)
+    extracted_dir=$(find "$temp_dir" -maxdepth 1 -type d -name "auto-uv-env-*" | head -1)
+
+    if [ -z "$extracted_dir" ]; then
+        err "failed to find extracted directory"
+    fi
+
+    printf '%s' "$extracted_dir"
 }
 
 # Install auto-uv-env files
