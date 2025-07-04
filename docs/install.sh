@@ -334,7 +334,6 @@ check_uv() {
 
 # Main installation function
 main() {
-platform
     platform="$(detect_platform)"
 
     say ""
