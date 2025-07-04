@@ -29,6 +29,27 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             return 0
         fi
 
+        # Performance optimization: If we're already in the right venv, skip the check
+        if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ "$PWD" == "${_AUTO_UV_ENV_ACTIVATION_DIR:-}"* ]]; then
+            # We're still in the same project tree with an active venv
+            return 0
+        fi
+
+        # Performance optimization: Check if .venv already exists and is activated
+        local venv_dir="${AUTO_UV_ENV_VENV_NAME:-.venv}"
+        if [[ -d "$venv_dir" ]] && [[ -f "$venv_dir/bin/activate" ]]; then
+            # If venv exists and we're not in any venv, just activate it
+            if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+                source "$venv_dir/bin/activate"
+                export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
+                local python_version
+                python_version=$(python --version 2>&1 | cut -d' ' -f2)
+                [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                export AUTO_UV_ENV_PYTHON_VERSION="$python_version"
+                return 0
+            fi
+        fi
+
         # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
         if [[ -z "${VIRTUAL_ENV:-}" ]] && [[ -n "${AUTO_UV_ENV_PYTHON_VERSION:-}" ]]; then
             unset AUTO_UV_ENV_PYTHON_VERSION

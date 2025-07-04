@@ -31,6 +31,28 @@ if command -v auto-uv-env >/dev/null 2>&1
             return 0
         end
 
+        # Performance optimization: If we're already in the right venv, skip the check
+        if test -n "$VIRTUAL_ENV"; and string match -q "$_AUTO_UV_ENV_ACTIVATION_DIR*" "$PWD"
+            # We're still in the same project tree with an active venv
+            return 0
+        end
+
+        # Performance optimization: Check if .venv already exists and is activated
+        set -l venv_dir (test -n "$AUTO_UV_ENV_VENV_NAME"; and echo $AUTO_UV_ENV_VENV_NAME; or echo ".venv")
+        if test -d "$venv_dir"; and test -f "$venv_dir/bin/activate.fish"
+            # If venv exists and we're not in any venv, just activate it
+            if test -z "$VIRTUAL_ENV"
+                source "$venv_dir/bin/activate.fish"
+                set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+                set -l python_version (python --version 2>&1 | cut -d' ' -f2)
+                if test "$AUTO_UV_ENV_QUIET" != "1"
+                    echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                end
+                set -gx AUTO_UV_ENV_PYTHON_VERSION "$python_version"
+                return 0
+            end
+        end
+
         # If VIRTUAL_ENV is not set but AUTO_UV_ENV_PYTHON_VERSION is, unset it.
         if test -z "$VIRTUAL_ENV"; and test -n "$AUTO_UV_ENV_PYTHON_VERSION"
             set -e AUTO_UV_ENV_PYTHON_VERSION
