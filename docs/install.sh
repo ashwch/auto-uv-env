@@ -415,6 +415,9 @@ while [ $# -gt 0 ]; do
         -q|--quiet)
             QUIET=1
             ;;
+        --ci)
+            CI_MODE=1
+            ;;
         -h|--help)
             cat << EOF
 auto-uv-env installer
