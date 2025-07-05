@@ -356,8 +356,10 @@ EOF
     rm -rf "$temp_dir"
 
     # Check that it detected the deleted environment and showed cleanup message
-    [[ "$result" == *"Virtual environment was deleted, cleaning up"* ]]
+    [[ "$result" == *"Virtual environment was deleted, cleaning up"* ]] && \
+    [[ "$result" == *"UV environment activated"* ]]
 }
+
 
 # Run all tests
 run_test "Bash integration syntax" test_bash_syntax

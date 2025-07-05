@@ -159,6 +159,26 @@ if command -v auto-uv-env >/dev/null 2>&1
                 if test "$AUTO_UV_ENV_QUIET" != "1"
                     echo -e "\033[0;32m✅\033[0m Virtual environment created"
                 end
+
+                # After creating a new environment, activate it
+                set -l venv_dir (test -n "$AUTO_UV_ENV_VENV_NAME"; and echo $AUTO_UV_ENV_VENV_NAME; or echo ".venv")
+                if test -f "$venv_dir/bin/activate.fish"
+                    source "$venv_dir/bin/activate.fish"
+                    set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+                    if set -l python_full_version (python --version 2>&1)
+                        set -l python_version (string replace "Python " "" "$python_full_version")
+                        if test "$AUTO_UV_ENV_QUIET" != "1"
+                            echo -e "\033[0;32m🚀\033[0m UV environment activated (Python $python_version)"
+                        end
+                        set -gx AUTO_UV_ENV_PYTHON_VERSION "$python_version"
+                    else
+                        if test "$AUTO_UV_ENV_QUIET" != "1"
+                            echo -e "\033[0;32m🚀\033[0m UV environment activated (Python not installed)"
+                            echo -e "\033[0;34mℹ️\033[0m  Run 'uv python install' to install Python"
+                        end
+                        set -gx AUTO_UV_ENV_PYTHON_VERSION "unknown"
+                    end
+                end
             end
 
             # Handle activation
