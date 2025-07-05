@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-VERSION="1.1.0"
+VERSION="1.1.1"
 QUIET_MODE="${AUTO_UV_ENV_QUIET:-0}"
 DEBUG_MODE="${AUTO_UV_ENV_DEBUG:-0}"
 
