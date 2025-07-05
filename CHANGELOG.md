@@ -5,6 +5,19 @@ All notable changes to auto-uv-env will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-07-05
+
+### Added
+- Handle deleted virtual environments gracefully
+- Detect when .venv directory is manually deleted while environment variables remain set
+- Show warning message: "⚠️ Virtual environment was deleted, cleaning up..."
+- Automatically clean up stale environment variables and recreate the environment
+- Comprehensive test suite for deleted virtual environment scenarios
+
+### Changed
+- Enhanced virtual environment state validation across all shell integrations (bash, zsh, fish)
+- Improved reliability when virtual environments are removed outside of auto-uv-env
+
 ## [1.0.8] - 2025-07-04
 
 ### Fixed
