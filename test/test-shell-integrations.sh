@@ -298,6 +298,67 @@ test_state_file_cleanup() {
     rm -rf "$temp_dir"
 }
 
+# Test deleted virtual environment handling
+test_deleted_venv_handling() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    cd "$temp_dir"
+
+    # Create test project
+    cat > pyproject.toml << 'EOF'
+[project]
+name = "test-deleted-venv"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = []
+EOF
+
+    # Test the deleted venv scenario
+    local result
+    result=$(bash -c "
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+        export AUTO_UV_ENV_QUIET=0
+
+        # Mock functions
+        uv() {
+            case \"\$1\" in
+                'venv') mkdir -p .venv/bin && touch .venv/bin/activate ;;
+                *) return 0 ;;
+            esac
+        }
+        python() { echo 'Python 3.11.0'; }
+
+        # Mock auto-uv-env to simulate first activation
+        auto-uv-env() {
+            if [[ -d '.venv' ]]; then
+                echo 'ACTIVATE=$PWD/.venv'
+            else
+                echo 'CREATE_VENV=1'
+                echo 'ACTIVATE=$PWD/.venv'
+            fi
+        }
+
+        # First run - should create and activate
+        auto_uv_env 2>&1
+
+        # Set environment variables as if we're in an active venv
+        export VIRTUAL_ENV=\"\$PWD/.venv\"
+        export _AUTO_UV_ENV_ACTIVATION_DIR=\"\$PWD\"
+
+        # Delete .venv to simulate the problem scenario
+        rm -rf .venv
+
+        # Now run auto_uv_env again - should detect deletion and show cleanup message
+        auto_uv_env 2>&1
+    ")
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+
+    # Check that it detected the deleted environment and showed cleanup message
+    [[ "$result" == *"Virtual environment was deleted, cleaning up"* ]]
+}
+
 # Run all tests
 run_test "Bash integration syntax" test_bash_syntax
 run_test "ZSH integration syntax" test_zsh_syntax
@@ -308,6 +369,7 @@ run_test "Integration end-to-end" test_integration_end_to_end
 run_test "Integration error handling" test_integration_error_handling
 run_test "Deactivation logic" test_deactivation_logic
 run_test "State file cleanup" test_state_file_cleanup
+run_test "Deleted virtual environment handling" test_deleted_venv_handling
 
 # Summary
 echo -e "\nShell Integration Test Results:"
