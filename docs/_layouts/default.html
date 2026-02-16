@@ -12,7 +12,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@300;400&display=swap" rel="stylesheet">
 </head>
-<body>
+{% assign page_slug = page.url | replace: "/", " " | strip | replace: " ", "-" %}
+<body class="{% if page_slug == '' %}page-home{% else %}page-{{ page_slug }}{% endif %}">
   <script>
     // Theme detection
     (function() {
@@ -31,9 +32,7 @@
         <a class="page-link" href="{{ "/usage/" | relative_url }}">Usage</a>
         <a class="page-link" href="{{ "/alternatives/" | relative_url }}">Alternatives</a>
         <a class="page-link" href="{{ "/contributing/" | relative_url }}">Contributing</a>
-        <a class="page-link" href="https://github.com/ashwch/auto-uv-env/blob/main/RELEASE.md">Release Guide</a>
         <a class="page-link" href="https://github.com/ashwch/auto-uv-env">GitHub</a>
-        <a class="page-link author-link" href="https://ashwch.com">ashwch.com</a>
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
           <span class="sun">☀️</span>
           <span class="moon">🌙</span>
@@ -52,6 +51,7 @@
     <div class="wrapper">
       <p>&copy; {{ site.time | date: '%Y' }} <a href="https://ashwch.com">Ashwini Chaudhary</a> |
          <a href="https://github.com/ashwch/auto-uv-env">View on GitHub</a> |
+         <a href="https://github.com/ashwch/auto-uv-env/blob/main/RELEASE.md">Release Guide</a> |
          <a href="https://github.com/ashwch/auto-uv-env/blob/main/LICENSE">MIT License</a>
       </p>
     </div>

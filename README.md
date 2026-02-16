@@ -10,10 +10,10 @@ Automatic UV-based Python virtual environment management for your shell.
 ## Architecture Overview
 
 ```text
-+-------------------------+      --check-safe       +--------------------------+
++-------------------------+      --check-safe       +-------------------------+
 | shell hook              |------------------------>| auto-uv-env             |
-| bash/zsh/fish adapter   |<------------------------| directive producer       |
-+------------+------------+      KEY=VALUE lines    +------------+-------------+
+| bash/zsh/fish adapter   |<------------------------| directive producer      |
++------------+------------+      KEY=VALUE lines    +------------+------------+
              |                                                   |
              | applies directives                               | reads pyproject.toml
              v                                                   | validates venv name

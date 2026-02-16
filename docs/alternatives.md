@@ -8,6 +8,14 @@ permalink: /alternatives/
 
 This comparison is based on public project documentation and READMEs, verified on **February 16, 2026**.
 
+## Fast Decision
+
+- Pick **`auto-uv-env`** if you want UV-first Python venv automation from `pyproject.toml` with minimal setup.
+- Pick **`direnv`** if you want general-purpose per-directory env scripting (not only Python).
+- Pick **`mise`** if you want one platform for runtimes, env management, and tasks.
+- Pick **`pyenv-virtualenv`** if your team standard is already pyenv + `.python-version`.
+- Pick shell-specific plugins only if your team is standardized on one shell.
+
 ## Choose by Outcome
 
 If you are choosing a tool for your team, start here:
@@ -52,6 +60,8 @@ Yes -> evaluate `zsh-autoswitch-virtualenv` (Zsh), `zsh-autoenv` (Zsh), or `Virt
 - Use Zsh/Fish-specific plugins (`zsh-autoswitch-virtualenv`, `zsh-autoenv`, `VirtualFish`) when shell-specific workflows are acceptable.
 
 ## Capability Matrix
+
+This is intentionally detailed. For a quick answer, use the sections above.
 
 | Tool | Primary model | Directory auto-activation | UV behavior (documented) | Shell scope (documented) | Trust/security model (documented) |
 |---|---|---|---|---|---|
