@@ -24,13 +24,23 @@ echo "Running auto-uv-env comprehensive tests..."
 TOTAL_TESTS=0
 PASSED_TESTS=0
 
+sanitize_test_env() {
+    unset VIRTUAL_ENV
+    unset VIRTUAL_ENV_PROMPT
+    unset _OLD_VIRTUAL_PATH
+    unset _OLD_VIRTUAL_PS1
+    unset _AUTO_UV_ENV_ACTIVATION_DIR
+    unset AUTO_UV_ENV_PYTHON_VERSION
+}
+
 run_test() {
     local test_name="$1"
     local test_func="$2"
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     echo -n "Test $TOTAL_TESTS: $test_name... "
 
-    if $test_func; then
+    # Run each test in a sanitized subshell to prevent host shell venv leakage.
+    if (sanitize_test_env; "$test_func"); then
         echo -e "${GREEN}PASS${NC}"
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else
@@ -76,6 +86,147 @@ EOF
     rm -rf "$temp_dir"
     # Should either find UV or report UV not found
     [[ "$output" == *"UV not found"* ]] || [[ "$output" == *"Setting up Python"* ]] || [[ -z "$output" ]]
+}
+
+test_parent_pyproject_detection() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project/subdir"
+    cd "$temp_dir/project/subdir"
+
+    cat > ../pyproject.toml << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.11"
+EOF
+
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ "$output" == *"CREATE_VENV=1"* ]] && [[ "$output" == *"PYTHON_VERSION=3.11"* ]]
+}
+
+test_ignore_file_precedence() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project/subdir/blocked/deep"
+    cd "$temp_dir/project/subdir/blocked/deep"
+
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.11"
+EOF
+    touch ../.auto-uv-env-ignore
+
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    # Ignore marker in path to project root should suppress activation/creation directives.
+    [[ -z "$output" ]] || ([[ "$output" == *"DEACTIVATE=1"* ]] && [[ "$output" != *"CREATE_VENV=1"* ]])
+}
+
+test_ignore_subtree_deactivates_managed_env() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project/subdir/blocked/deep" "$temp_dir/project/.venv"
+    cd "$temp_dir/project/subdir/blocked/deep"
+
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.11"
+EOF
+    touch ../.auto-uv-env-ignore
+
+    export VIRTUAL_ENV="$temp_dir/project/.venv"
+    export _AUTO_UV_ENV_ACTIVATION_DIR="$temp_dir/project"
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    unset VIRTUAL_ENV
+    unset _AUTO_UV_ENV_ACTIVATION_DIR
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ "$output" == *"DEACTIVATE=1"* ]]
+}
+
+test_manual_venv_is_respected() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    cd "$temp_dir"
+
+    cat > pyproject.toml << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.11"
+EOF
+
+    export VIRTUAL_ENV="/tmp/manual-venv"
+    unset _AUTO_UV_ENV_ACTIVATION_DIR
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    unset VIRTUAL_ENV
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ -z "$output" ]]
+}
+
+test_relative_directory_argument() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project/sub"
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.11"
+EOF
+
+    cd "$temp_dir"
+    local output
+    output=$($AUTO_UV_ENV --check-safe "./project/sub" 2>&1 || true)
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ "$output" == *"CREATE_VENV=1"* ]] && [[ "$output" == *"PYTHON_VERSION=3.11"* ]]
+}
+
+test_prefix_collision_deactivates_outside_tree() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project" "$temp_dir/project-other"
+    cd "$temp_dir/project-other"
+
+    export VIRTUAL_ENV="$temp_dir/project/.venv"
+    export _AUTO_UV_ENV_ACTIVATION_DIR="$temp_dir/project"
+    local output
+    output=$($AUTO_UV_ENV --check-safe 2>&1 || true)
+    unset VIRTUAL_ENV
+    unset _AUTO_UV_ENV_ACTIVATION_DIR
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ "$output" == *"DEACTIVATE=1"* ]]
+}
+
+test_relative_directory_keeps_managed_tree_active() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project/sub"
+    cd "$temp_dir"
+
+    export VIRTUAL_ENV="$temp_dir/project/.venv"
+    export _AUTO_UV_ENV_ACTIVATION_DIR="$temp_dir/project"
+    local output
+    output=$($AUTO_UV_ENV --check-safe "./project/sub" 2>&1 || true)
+    unset VIRTUAL_ENV
+    unset _AUTO_UV_ENV_ACTIVATION_DIR
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ "$output" != *"DEACTIVATE=1"* ]]
 }
 
 test_safe_mode() {
@@ -164,6 +315,13 @@ run_test "Version flag" test_version_flag
 run_test "Help flag" test_help_flag
 run_test "No pyproject.toml" test_no_pyproject
 run_test "Valid pyproject.toml" test_valid_pyproject
+run_test "Parent pyproject.toml detection" test_parent_pyproject_detection
+run_test "Ignore file precedence in subtree" test_ignore_file_precedence
+run_test "Ignore subtree deactivates managed env" test_ignore_subtree_deactivates_managed_env
+run_test "Manual venv is respected" test_manual_venv_is_respected
+run_test "Relative directory argument works" test_relative_directory_argument
+run_test "Prefix-collision paths still deactivate correctly" test_prefix_collision_deactivates_outside_tree
+run_test "Relative path keeps managed tree active" test_relative_directory_keeps_managed_tree_active
 run_test "Safe mode functionality" test_safe_mode
 run_test "Invalid version format rejection" test_invalid_version_format
 run_test "Path traversal protection" test_path_traversal_protection

@@ -25,13 +25,23 @@ echo "Running comprehensive shell integration tests..."
 TOTAL_TESTS=0
 PASSED_TESTS=0
 
+sanitize_test_env() {
+    unset VIRTUAL_ENV
+    unset VIRTUAL_ENV_PROMPT
+    unset _OLD_VIRTUAL_PATH
+    unset _OLD_VIRTUAL_PS1
+    unset _AUTO_UV_ENV_ACTIVATION_DIR
+    unset AUTO_UV_ENV_PYTHON_VERSION
+}
+
 run_test() {
     local test_name="$1"
     local test_func="$2"
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     echo -n "Test $TOTAL_TESTS: $test_name... "
 
-    if $test_func; then
+    # Run each test in a sanitized subshell to prevent host shell venv leakage.
+    if (sanitize_test_env; "$test_func"); then
         echo -e "${GREEN}PASS${NC}"
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else
@@ -55,6 +65,71 @@ test_zsh_syntax() {
     fi
 }
 
+# Test zsh deactivation when paths share a prefix but are different trees
+test_zsh_prefix_collision_deactivates_outside_tree() {
+    if ! command -v zsh >/dev/null 2>&1; then
+        echo "ZSH not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project" "$temp_dir/project-other"
+
+    local result
+    result=$(zsh -c "
+        cd '$temp_dir'
+        export PATH=\"$PROJECT_ROOT:\$PATH\"
+        export AUTO_UV_ENV_QUIET=1
+        source '$INTEGRATION_DIR/auto-uv-env.zsh'
+
+        export VIRTUAL_ENV='$temp_dir/project/.venv'
+        export _AUTO_UV_ENV_ACTIVATION_DIR='$temp_dir/project'
+        export AUTO_UV_ENV_PYTHON_VERSION='3.11.0'
+
+        deactivate() { unset VIRTUAL_ENV; }
+
+        cd '$temp_dir/project-other'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+
+        [[ -z \"\$VIRTUAL_ENV\" ]] || exit 1
+        [[ -z \"\$_AUTO_UV_ENV_ACTIVATION_DIR\" ]] || exit 1
+        [[ -z \"\$AUTO_UV_ENV_PYTHON_VERSION\" ]] || exit 1
+        echo 'ZSH_PREFIX_COLLISION_DEACTIVATE_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"ZSH_PREFIX_COLLISION_DEACTIVATE_SUCCESS"* ]]
+}
+
+# Test zsh temp state file cleanup when check-safe fails
+test_zsh_state_file_cleanup_on_failure() {
+    if ! command -v zsh >/dev/null 2>&1; then
+        echo "ZSH not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+
+    local result
+    result=$(zsh -c "
+        cd '$temp_dir'
+        export PATH=\"$PROJECT_ROOT:\$PATH\"
+        export AUTO_UV_ENV_QUIET=1
+        source '$INTEGRATION_DIR/auto-uv-env.zsh'
+
+        auto-uv-env() { return 1; }
+
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ ! -f \"/tmp/auto-uv-env.\$\$.state\" ]] || exit 1
+        echo 'ZSH_STATE_CLEANUP_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"ZSH_STATE_CLEANUP_SUCCESS"* ]]
+}
+
 # Test fish integration syntax
 test_fish_syntax() {
     if command -v fish >/dev/null 2>&1; then
@@ -63,6 +138,187 @@ test_fish_syntax() {
         echo "Fish not available, skipping"
         return 0
     fi
+}
+
+# Test fish temp state file cleanup when check-safe fails
+test_fish_state_file_cleanup_on_failure() {
+    if ! command -v fish >/dev/null 2>&1; then
+        echo "Fish not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+
+    local result
+    result=$(fish -c "
+        cd '$temp_dir'
+        set -gx PATH '$PROJECT_ROOT' \$PATH
+        set -gx AUTO_UV_ENV_QUIET 1
+        source '$INTEGRATION_DIR/auto-uv-env.fish'
+
+        function auto-uv-env
+            return 1
+        end
+
+        auto_uv_env >/dev/null 2>&1
+        or exit 1
+
+        set -l state_file '/tmp/auto-uv-env.'(echo %self)'.state'
+        test ! -f \$state_file
+        or exit 1
+
+        echo 'FISH_STATE_CLEANUP_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"FISH_STATE_CLEANUP_SUCCESS"* ]]
+}
+
+# Test lazy-loading fast path in non-Python directories
+test_non_python_fast_path() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+
+    local result
+    result=$(bash -c "
+        cd '$temp_dir'
+        export PATH='$PROJECT_ROOT:\$PATH'
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+
+        # If this executes in a non-Python directory, fast-path is broken.
+        auto-uv-env() { echo 'AUTO_UV_ENV_CALLED'; return 1; }
+
+        auto_uv_env
+        echo 'FAST_PATH_OK'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"FAST_PATH_OK"* ]] && [[ "$result" != *"AUTO_UV_ENV_CALLED"* ]]
+}
+
+# Test activation when entering a project via nested subdirectory
+test_subdirectory_project_activation() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project/subdir"
+    cd "$temp_dir/project/subdir"
+
+    cat > ../pyproject.toml << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.11"
+EOF
+
+    local result
+    result=$(bash -c "
+        cd '$temp_dir/project/subdir'
+        unset VIRTUAL_ENV
+        unset _AUTO_UV_ENV_ACTIVATION_DIR
+        unset AUTO_UV_ENV_PYTHON_VERSION
+        export PATH=\"$PROJECT_ROOT:\$PATH\"
+        export AUTO_UV_ENV_QUIET=1
+
+        # Mock directive producer so this test does not depend on system UV installation.
+        auto-uv-env() {
+            echo 'CREATE_VENV=1'
+            echo 'PYTHON_VERSION=3.11'
+            echo 'MSG_SETUP=🐍 Setting up Python 3.11 with UV...'
+        }
+
+        uv() {
+            case \"\$1\" in
+                'python') return 0 ;;
+                'venv') mkdir -p .venv/bin && touch .venv/bin/activate ;;
+            esac
+            return 0
+        }
+
+        python() { echo 'Python 3.11.0'; }
+
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+
+        auto_uv_env >/dev/null 2>&1 || exit 1
+
+        # Verify creation/activation targeting uses project root, not current subdirectory.
+        [[ -f '$temp_dir/project/.venv/bin/activate' ]] || exit 1
+        [[ \"\$_AUTO_UV_ENV_ACTIVATION_DIR\" == */project ]] || exit 1
+        echo 'SUBDIR_ACTIVATION_SUCCESS'
+    " 2>&1)
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ "$result" == *"SUBDIR_ACTIVATION_SUCCESS"* ]]
+}
+
+# Test that ignore markers deactivate an already managed environment in that subtree
+test_ignore_subtree_deactivates_active_env() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project/subdir/blocked/deep" "$temp_dir/project/.venv"
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.11"
+EOF
+    touch "$temp_dir/project/subdir/blocked/.auto-uv-env-ignore"
+
+    local result
+    result=$(bash -c "
+        cd '$temp_dir'
+        export PATH=\"$PROJECT_ROOT:\$PATH\"
+        export AUTO_UV_ENV_QUIET=1
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+
+        export VIRTUAL_ENV='$temp_dir/project/.venv'
+        export _AUTO_UV_ENV_ACTIVATION_DIR='$temp_dir/project'
+        export AUTO_UV_ENV_PYTHON_VERSION='3.11.0'
+
+        deactivate() { unset VIRTUAL_ENV; echo 'DEACTIVATED'; }
+
+        cd '$temp_dir/project/subdir/blocked/deep'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+
+        [[ -z \"\$VIRTUAL_ENV\" ]] || exit 1
+        [[ -z \"\$_AUTO_UV_ENV_ACTIVATION_DIR\" ]] || exit 1
+        [[ -z \"\$AUTO_UV_ENV_PYTHON_VERSION\" ]] || exit 1
+        echo 'IGNORE_DEACTIVATE_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"IGNORE_DEACTIVATE_SUCCESS"* ]]
+}
+
+# Test that similar path prefixes do not keep stale managed envs active
+test_prefix_collision_deactivates_outside_tree() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project" "$temp_dir/project-other"
+
+    local result
+    result=$(bash -c "
+        cd '$temp_dir'
+        export PATH=\"$PROJECT_ROOT:\$PATH\"
+        export AUTO_UV_ENV_QUIET=1
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+
+        export VIRTUAL_ENV='$temp_dir/project/.venv'
+        export _AUTO_UV_ENV_ACTIVATION_DIR='$temp_dir/project'
+        export AUTO_UV_ENV_PYTHON_VERSION='3.11.0'
+
+        deactivate() { unset VIRTUAL_ENV; }
+
+        cd '$temp_dir/project-other'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+
+        [[ -z \"\$VIRTUAL_ENV\" ]] || exit 1
+        [[ -z \"\$_AUTO_UV_ENV_ACTIVATION_DIR\" ]] || exit 1
+        [[ -z \"\$AUTO_UV_ENV_PYTHON_VERSION\" ]] || exit 1
+        echo 'PREFIX_COLLISION_DEACTIVATE_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"PREFIX_COLLISION_DEACTIVATE_SUCCESS"* ]]
 }
 
 # Test state file parsing in bash
@@ -185,7 +441,7 @@ EOF
         source '$INTEGRATION_DIR/auto-uv-env.bash'
 
         # Use real auto-uv-env but mock UV
-        export PATH="$SCRIPT_DIR/../:$PATH"
+        export PATH='$PROJECT_ROOT':\$PATH
 
         # Mock UV to avoid actual creation
         uv() {
@@ -364,7 +620,14 @@ EOF
 # Run all tests
 run_test "Bash integration syntax" test_bash_syntax
 run_test "ZSH integration syntax" test_zsh_syntax
+run_test "ZSH prefix-collision deactivation" test_zsh_prefix_collision_deactivates_outside_tree
+run_test "ZSH state-file cleanup on failure" test_zsh_state_file_cleanup_on_failure
 run_test "Fish integration syntax" test_fish_syntax
+run_test "Fish state-file cleanup on failure" test_fish_state_file_cleanup_on_failure
+run_test "Non-Python fast path (lazy loading)" test_non_python_fast_path
+run_test "Subdirectory project activation" test_subdirectory_project_activation
+run_test "Ignore subtree deactivates active env" test_ignore_subtree_deactivates_active_env
+run_test "Prefix-collision paths deactivate active env" test_prefix_collision_deactivates_outside_tree
 run_test "Bash state file parsing" test_bash_state_parsing
 run_test "Fish state file parsing" test_fish_state_parsing
 run_test "Integration end-to-end" test_integration_end_to_end

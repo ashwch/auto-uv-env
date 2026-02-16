@@ -13,9 +13,19 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
+sanitize_test_env() {
+    unset VIRTUAL_ENV
+    unset VIRTUAL_ENV_PROMPT
+    unset _OLD_VIRTUAL_PATH
+    unset _OLD_VIRTUAL_PS1
+    unset _AUTO_UV_ENV_ACTIVATION_DIR
+    unset AUTO_UV_ENV_PYTHON_VERSION
+}
+
 echo "Running auto-uv-env security tests..."
 
 # Test 1: Command injection prevention
+sanitize_test_env
 echo -n "Test 1: Command injection prevention... "
 temp_dir=$(mktemp -d)
 cd "$temp_dir"
@@ -39,6 +49,7 @@ cd - > /dev/null
 rm -rf "$temp_dir"
 
 # Test 2: Path traversal prevention
+sanitize_test_env
 echo -n "Test 2: Path traversal prevention... "
 export AUTO_UV_ENV_VENV_NAME="../malicious"
 output=$($AUTO_UV_ENV --version 2>&1 || true)
@@ -52,6 +63,7 @@ fi
 unset AUTO_UV_ENV_VENV_NAME
 
 # Test 3: Invalid Python version formats
+sanitize_test_env
 echo -n "Test 3: Invalid Python version validation... "
 temp_dir=$(mktemp -d)
 cd "$temp_dir"
@@ -74,6 +86,7 @@ cd - > /dev/null
 rm -rf "$temp_dir"
 
 # Test 4: Safe mode functionality with valid input
+sanitize_test_env
 echo -n "Test 4: Safe mode functionality... "
 temp_dir=$(mktemp -d)
 cd "$temp_dir"
@@ -96,6 +109,7 @@ cd - > /dev/null
 rm -rf "$temp_dir"
 
 # Test 5: State file security (no arbitrary file writes)
+sanitize_test_env
 echo -n "Test 5: State file security... "
 # Test that state files are created in /tmp and cleaned up
 temp_dir=$(mktemp -d)

@@ -33,6 +33,14 @@ cd ..
 # ⬇️  Deactivated UV environment
 ```
 
+You can also enter a project through nested directories:
+
+```bash
+cd my-python-project/src/app/
+# auto-uv-env walks up directories, finds my-python-project/pyproject.toml,
+# and activates my-python-project/.venv
+```
+
 ## Configuration Options
 
 ### Environment Variables
@@ -78,6 +86,11 @@ touch .auto-uv-env-ignore
 echo "Using direnv for this project" > .auto-uv-env-ignore
 ```
 
+Ignore precedence:
+- auto-uv-env walks upward from `$PWD`
+- if `.auto-uv-env-ignore` is found before `pyproject.toml`, activation is skipped for that subtree
+- if you enter an ignored subtree from an active auto-uv-env project, the managed environment is deactivated
+
 ### Working with Existing Virtual Environments
 
 auto-uv-env respects existing virtual environments:
@@ -93,14 +106,18 @@ auto-uv-env respects existing virtual environments:
 ```bash
 # Show version
 auto-uv-env --version
-# Output: auto-uv-env 1.0.4
+# Output: auto-uv-env 1.1.1
 
 # Show help
 auto-uv-env --help
 
 # Check if environment should be activated (safe mode)
 auto-uv-env --check-safe
-# Output: {"activate": true, "venv": ".venv", "python": "3.11"}
+# Output (directive format):
+# CREATE_VENV=1
+# PYTHON_VERSION=3.11
+# MSG_SETUP=🐍 Setting up Python 3.11 with UV...
+# ACTIVATE=/path/to/project/.venv
 
 # Show diagnostic information
 auto-uv-env --diagnose
@@ -200,13 +217,13 @@ python -m ipykernel install --user --name=myproject
 ### Performance Issues
 
 auto-uv-env v1.0.7 includes major performance optimizations:
-- **Shell startup overhead**: 2-3ms (Python projects), 0ms (non-Python directories)
+- **Shell startup overhead**: 2-3ms (Python projects), effectively near-zero (non-project directories)
 - **Directory change overhead**: <1ms per `cd` command
 - **First-time environment creation**: 1-5 seconds (UV creates the virtual environment)
 - **Subsequent activations**: Near-instant (uses cached environment)
 
 Key optimizations in v1.0.7:
-- Lazy loading (no execution for non-Python directories)
+- Lazy loading (skips activation work in non-project directories)
 - Command path caching
 - Native bash TOML parsing (no Python subprocess)
 - Shell built-ins instead of external commands

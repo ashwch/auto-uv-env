@@ -3,135 +3,102 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![UV](https://img.shields.io/badge/UV-Required-blue.svg)](https://github.com/astral-sh/uv)
 
-Automatic UV-based Python virtual environment management for your shell. No more manual `source .venv/bin/activate`!
+Automatic UV-based Python virtual environment management for your shell.
 
-## Features
+`auto-uv-env` watches directory changes, discovers the nearest `pyproject.toml`, creates a project-local virtual environment with `uv`, and activates/deactivates it automatically.
 
-- 🚀 **Automatic activation** - Activates Python virtual environments when you `cd` into a project
-- 🐍 **UV-powered** - Uses [UV](https://github.com/astral-sh/uv) for lightning-fast environment creation
-- 📦 **pyproject.toml aware** - Reads Python version from `requires-python`
-- 🎯 **Zero configuration** - Works out of the box
-- 🐚 **Multi-shell support** - Works with Zsh, Bash, and Fish
-- ⚡ **Performance optimized** - Minimal overhead: 8.6ms on shell startup, 1.3ms per directory change
-- 🧹 **Smart deactivation** - Only deactivates environments it activated
-- 🛡️ **Security focused** - Path validation and injection protection
-- 📍 **Project-aware** - Stays active in project subdirectories
-- 🔒 **Respects manual venvs** - Won't interfere with manually activated environments
+## Architecture Overview
 
-## Installation
+```text
++-------------------------+      --check-safe       +--------------------------+
+| shell hook              |------------------------>| auto-uv-env             |
+| bash/zsh/fish adapter   |<------------------------| directive producer       |
++------------+------------+      KEY=VALUE lines    +------------+-------------+
+             |                                                   |
+             | applies directives                               | reads pyproject.toml
+             v                                                   | validates venv name
+      +------+--------------------------+                        |
+      | source/deactivate virtualenv    |                        |
+      | uv python install / uv venv     |<-----------------------+
+      +---------------------------------+
+```
 
-### Quick Install (Recommended)
+## Quick Start
+
+### 1) Install UV
 
 ```bash
-# Install auto-uv-env
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### 2) Install auto-uv-env
+
+Installer script:
+
+```bash
 curl -LsSf https://auto-uv-env.ashwch.com/install.sh | sh
 ```
 
-### Using Homebrew (macOS preferred)
+Homebrew:
 
 ```bash
 brew tap ashwch/tap
 brew install auto-uv-env
 ```
 
-### Alternative Installation Methods
+### 3) Add shell integration
 
-#### Install from GitHub
+Zsh (`~/.zshrc`):
 
-```bash
-# Using the installer from GitHub
-curl -LsSf https://raw.githubusercontent.com/ashwch/auto-uv-env/main/docs/install.sh | sh
-```
-
-#### Manual Installation
-
-```bash
-# Clone and install manually
-git clone https://github.com/ashwch/auto-uv-env.git
-cd auto-uv-env
-sudo cp auto-uv-env /usr/local/bin/
-sudo mkdir -p /usr/local/share/auto-uv-env
-sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
-```
-
-### Uninstallation
-
-```bash
-# If installed with the installer script
-curl -LsSf https://auto-uv-env.ashwch.com/uninstall.sh | sh
-
-# If installed with Homebrew
-brew uninstall auto-uv-env
-```
-
-## Setup
-
-Add to your shell configuration:
-
-### Zsh (~/.zshrc)
 ```zsh
-# For Homebrew
 source $(brew --prefix)/share/auto-uv-env/auto-uv-env.zsh
-
-# For Linux/manual installation
-source /usr/local/share/auto-uv-env/auto-uv-env.zsh
-# Or if installed via package
-source /usr/share/auto-uv-env/auto-uv-env.zsh
+# or: source /usr/local/share/auto-uv-env/auto-uv-env.zsh
 ```
 
-### Bash (~/.bashrc)
+Bash (`~/.bashrc`):
+
 ```bash
-# For Homebrew
 source $(brew --prefix)/share/auto-uv-env/auto-uv-env.bash
-
-# For Linux/manual installation
-source /usr/local/share/auto-uv-env/auto-uv-env.bash
-# Or if installed via package
-source /usr/share/auto-uv-env/auto-uv-env.bash
+# or: source /usr/local/share/auto-uv-env/auto-uv-env.bash
 ```
 
-### Fish (~/.config/fish/config.fish)
+Fish (`~/.config/fish/config.fish`):
+
 ```fish
-# For Homebrew
 source (brew --prefix)/share/auto-uv-env/auto-uv-env.fish
-
-# For Linux/manual installation
-source /usr/local/share/auto-uv-env/auto-uv-env.fish
-# Or if installed via package
-source /usr/share/auto-uv-env/auto-uv-env.fish
+# or: source /usr/local/share/auto-uv-env/auto-uv-env.fish
 ```
 
-## Usage
-
-Just `cd` into any Python project with a `pyproject.toml`:
+### 4) Use it
 
 ```bash
-cd my-python-project/
+cd my-project/src/app
 # 🐍 Setting up Python 3.11 with UV...
 # ✅ Virtual environment created
-# 🚀 UV environment activated (Python 3.11.5)
-
-# Your prompt might look like this (if configured to show Python version):
-# (3.11.5) my-python-project $ 
+# 🚀 UV environment activated (Python 3.11.x)
 
 cd ..
 # ⬇️  Deactivated UV environment
 ```
 
-That's it! The virtual environment is automatically:
-- Created if it doesn't exist (using Python version from `requires-python`)
-- Activated when you enter the directory
-- Deactivated when you leave
+## Core Behavior
+
+1. Walk upward from `$PWD` to find the nearest `pyproject.toml`.
+2. If `.auto-uv-env-ignore` appears first, skip activation for that subtree.
+3. Read `requires-python` from the discovered project root.
+4. Create `<project-root>/.venv` when missing.
+5. Activate on entry and deactivate only environments managed by auto-uv-env.
+6. If a manual venv is active, auto-uv-env does not override it.
 
 ## Configuration
 
-### Environment Variables
+Environment variables:
 
-- `AUTO_UV_ENV_QUIET=1` - Suppress all status messages
-- `AUTO_UV_ENV_VENV_NAME=.venv` - Custom virtual environment directory name (default: `.venv`)
-- `AUTO_UV_ENV_PYTHON_VERSION` - Contains the Python version of the currently activated virtual environment. Useful for prompt customization.
+- `AUTO_UV_ENV_QUIET=1`: suppress status messages.
+- `AUTO_UV_ENV_VENV_NAME=.venv`: change the venv directory name.
+- `AUTO_UV_ENV_PYTHON_VERSION`: exported Python version of the active managed env.
 
-### Example pyproject.toml
+`pyproject.toml` example:
 
 ```toml
 [project]
@@ -139,204 +106,75 @@ name = "my-project"
 requires-python = ">=3.11"
 ```
 
-auto-uv-env will automatically use Python 3.11 for this project.
-
-## Requirements
-
-- [UV](https://github.com/astral-sh/uv) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- A shell (Zsh, Bash, or Fish)
-- Python projects with `pyproject.toml`
-
-## How It Works
-
-1. When you `cd` into a directory, auto-uv-env checks for `pyproject.toml`
-2. If found, it reads the `requires-python` field
-3. Uses UV to create a virtual environment with the correct Python version
-4. Activates the environment automatically
-5. When you leave the directory, it deactivates the environment
-
-## Performance
-
-auto-uv-env is designed with performance in mind. Version 1.0.7 includes major optimizations:
-
-### Performance Improvements (v1.0.7)
-- **Lazy loading**: No overhead for non-Python directories on shell startup
-- **Command caching**: Eliminated repeated lookups for `uv` and `python`
-- **Native bash parsing**: Removed Python fallback for TOML parsing (saves 50-100ms)
-- **Shell built-ins**: Replaced external commands with parameter expansion
-- **Batch file checks**: Combined multiple file system checks
-
-### Measured Performance
-- **Shell startup (Python project)**: 2-3ms (down from 8.6ms)
-- **Shell startup (non-Python)**: 0ms (no execution)
-- **Directory change**: <1ms per `cd` command
-- **First-time setup**: 1-5 seconds (UV creates the virtual environment)
-
-### Recommended Settings
-For optimal performance:
-```bash
-# Enable quiet mode (saves ~1ms per activation)
-export AUTO_UV_ENV_QUIET=1
-
-# Debug mode is now off by default (saves version checks)
-# Only enable for troubleshooting:
-# export AUTO_UV_ENV_DEBUG=1
-```
-
-## Integration with Other Tools
-
-### Disabling in Specific Directories
-
-If you need to disable auto-uv-env in specific directories (e.g., when using direnv), create a `.auto-uv-env-ignore` file:
+Disable in a subtree:
 
 ```bash
-# Disable auto-uv-env in this directory
 touch .auto-uv-env-ignore
 ```
 
-## Comparison
+Ignore precedence:
 
-| Feature | auto-uv-env | direnv | pyenv-virtualenv |
-|---------|------------|---------|------------------|
-| Automatic activation | ✅ | ✅ | ✅ |
-| UV integration | ✅ | ❌ | ❌ |
-| Zero config | ✅ | ❌ | ❌ |
-| Speed | ⚡ Fast | 🐢 Slower | 🐢 Slower |
-| Python-specific | ✅ | ❌ | ✅ |
+- Upward discovery stops activation when ignore is found before `pyproject.toml`.
+- Entering an ignored subtree deactivates the currently managed environment.
 
-## Contributing
+## CLI Reference
 
-Contributions are welcome! Please follow these steps to contribute:
+```bash
+auto-uv-env --help
+auto-uv-env --version
+auto-uv-env --check-safe [DIR]
+auto-uv-env --diagnose [DIR]
+auto-uv-env --validate
+```
 
-### Prerequisites
+`--check-safe` emits directive lines (for shell adapters), for example:
 
-- [UV](https://github.com/astral-sh/uv) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- Git
-- A shell (Zsh, Bash, or Fish)
+```text
+CREATE_VENV=1
+PYTHON_VERSION=3.11
+MSG_SETUP=🐍 Setting up Python 3.11 with UV...
+ACTIVATE=/path/to/project/.venv
+```
 
-### Development Setup
+## Performance
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/ashwch/auto-uv-env.git
-   cd auto-uv-env
-   ```
+- v1.0.7 delivered roughly 93% startup overhead improvement versus earlier behavior.
+- Typical startup overhead is low in Python projects and effectively near-zero in non-project directories.
+- Directory-change overhead is typically sub-millisecond.
 
-2. **Install development dependencies**
-   ```bash
-   uv tool install pre-commit
-   ```
+## Documentation Map
 
-3. **Set up pre-commit hooks**
-   ```bash
-   uv tool run pre-commit install
-   ```
+- Installation details: [`docs/installation.md`](docs/installation.md)
+- Usage and troubleshooting: [`docs/usage.md`](docs/usage.md)
+- Contributing guide: [`docs/contributing.md`](docs/contributing.md)
 
-### Development Workflow
+## For Contributors
 
-1. **Make your changes** to the relevant files:
-   - `auto-uv-env` - Main bash script
-   - `share/auto-uv-env/` - Shell integration files
-   - `test/` - Test files
-
-2. **Run tests**
-   ```bash
-   ./test/test.sh
-   ```
-
-3. **Check code quality** (runs automatically via pre-commit)
-   ```bash
-   uv tool run pre-commit run --all-files
-   ```
-
-4. **Test manually**
-   ```bash
-   # Make script executable
-   chmod +x auto-uv-env
-   
-   # Test commands
-   ./auto-uv-env --help
-   ./auto-uv-env --version
-   ./auto-uv-env --check
-   
-   # Test in a Python project
-   cd /path/to/python/project
-   ./auto-uv-env --check
-   ```
-
-### Pre-commit Hooks
-
-The project uses comprehensive pre-commit hooks that automatically run:
-
-- **Code Quality**: shellcheck for shell script linting
-- **Security**: detect-secrets for credential scanning
-- **Formatting**: beautysh for shell script formatting
-- **Testing**: Run the test suite before push
-- **Validation**: Syntax checks for all shell integrations
-- **Project Checks**: Version consistency, TODO detection
-
-### Testing
-
-Run the test suite to ensure everything works:
+Essential checks:
 
 ```bash
 ./test/test.sh
-```
-
-For security testing:
-```bash
 ./test/test-security.sh
+./test/test-shell-integrations.sh
+./test/test-deleted-venv.sh
+uv tool run pre-commit run --all-files
 ```
 
-### Homebrew Formula Testing
-
-If modifying the Homebrew formula:
+If your shell currently has an active venv, use a sanitized test invocation:
 
 ```bash
-# Test locally
-brew tap-new local/test
-cp homebrew/auto-uv-env.rb $(brew --repository)/Library/Taps/local/homebrew-test/Formula/
-brew install --build-from-source local/test/auto-uv-env
-brew test local/test/auto-uv-env
+env -u VIRTUAL_ENV -u _AUTO_UV_ENV_ACTIVATION_DIR -u AUTO_UV_ENV_PYTHON_VERSION ./test/test.sh
 ```
 
-### Code Style
+## LLM Agent Docs
 
-- Use 4-space indentation for shell scripts
-- Follow existing patterns and conventions
-- Add comments for complex logic
-- Ensure all scripts have proper shebangs
-- Use shellcheck-compliant code
-
-### Pull Request Guidelines
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes following the development workflow
-4. Ensure all tests pass and pre-commit hooks succeed
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-### Issue Reporting
-
-When reporting issues, please include:
-- Operating system and shell type
-- UV version (`uv --version`)
-- auto-uv-env version (`auto-uv-env --version`)
-- Steps to reproduce
-- Expected vs actual behavior
-- Relevant log output
+- [`AGENTS.md`](AGENTS.md): canonical architecture, workflows, quality gates, and safety rules.
+- [`CLAUDE.md`](CLAUDE.md): minimal Claude entrypoint that sources `AGENTS.md`.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License. See [`LICENSE`](LICENSE).
 
 ## Author
 
-Created by [Ashwini Chaudhary](https://github.com/ashwch)
-
-## Acknowledgments
-
-- [UV](https://github.com/astral-sh/uv) - The blazing-fast Python package manager
-- Inspired by similar tools like direnv and pyenv-virtualenv
+Created by [Ashwini Chaudhary](https://github.com/ashwch).

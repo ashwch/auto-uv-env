@@ -149,32 +149,112 @@ get_python_version() {
     fi
 }
 
+# Find project root by walking up directories.
+# Exit codes:
+#   0: project root found (printed to stdout)
+#   1: no project root found
+#   2: disabled by .auto-uv-env-ignore encountered before any pyproject.toml
+find_project_root() {
+    local dir="${1:-$PWD}"
+
+    # Normalize to absolute path to avoid infinite loops on relative inputs.
+    if [[ "$dir" != /* ]]; then
+        dir="$(cd "$dir" 2>/dev/null && pwd)" || return 1
+    fi
+
+    while true; do
+        # Ignore marker takes precedence for the current subtree.
+        if [[ -f "$dir/.auto-uv-env-ignore" ]]; then
+            print_debug "auto-uv-env disabled by $dir/.auto-uv-env-ignore"
+            return 2
+        fi
+
+        if [[ -f "$dir/pyproject.toml" ]]; then
+            echo "$dir"
+            return 0
+        fi
+
+        if [[ "$dir" == "/" ]]; then
+            return 1
+        fi
+
+        dir="${dir%/*}"
+        [[ -z "$dir" ]] && dir="/"
+    done
+}
+
+# Check whether a path is inside a base directory (with path-boundary awareness).
+is_within_directory() {
+    local path="$1"
+    local base="$2"
+
+    [[ -n "$base" ]] || return 1
+
+    # Normalize trailing slashes except root.
+    if [[ "$base" != "/" ]]; then
+        base="${base%/}"
+    fi
+    if [[ "$path" != "/" ]]; then
+        path="${path%/}"
+    fi
+
+    if [[ "$base" == "/" ]]; then
+        [[ "$path" == /* ]]
+    else
+        [[ "$path" == "$base" || "$path" == "$base/"* ]]
+    fi
+}
+
 # Main directory check function
 check_directory() {
     local dir="${1:-$PWD}"
 
+    # Normalize to absolute path so tree checks remain correct for relative args.
+    if [[ "$dir" != /* ]]; then
+        dir="$(cd "$dir" 2>/dev/null && pwd)" || {
+            print_debug "Directory does not exist or is inaccessible: $dir"
+            return 0
+        }
+    fi
+
     print_debug "Checking directory: $dir"
     print_debug "VENV_DIR: $VENV_DIR"
 
-    # Quick exit if disabled or no pyproject.toml
-    if [[ -f "$dir/.auto-uv-env-ignore" ]]; then
-        print_debug "auto-uv-env disabled in $dir (.auto-uv-env-ignore found)"
-        return 0
-    fi
+    local project_root="" root_status=0
+    project_root=$(find_project_root "$dir") || root_status=$?
 
-    if [[ ! -f "$dir/pyproject.toml" ]]; then
-        print_debug "No pyproject.toml found in $dir"
-        # Check if we need to deactivate
-        if [[ -n "${VIRTUAL_ENV:-}" ]]; then
-            print_debug "Deactivating current environment: $VIRTUAL_ENV"
+    if [[ $root_status -eq 2 ]]; then
+        # Respect ignore markers by deactivating managed environments in ignored subtrees.
+        if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -n "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" ]]; then
+            print_debug "Deactivating managed environment due to ignore marker"
             echo "DEACTIVATE=1"
         fi
         return 0
     fi
 
-    local venv_path="$dir/$VENV_DIR"
+    if [[ $root_status -ne 0 ]] || [[ -z "$project_root" ]]; then
+        print_debug "No pyproject.toml found in $dir or its parent directories"
+        # Only request deactivation for environments auto-uv-env activated.
+        if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -n "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" ]]; then
+            if ! is_within_directory "$dir" "${_AUTO_UV_ENV_ACTIVATION_DIR}"; then
+                print_debug "Deactivating managed environment: $VIRTUAL_ENV"
+                echo "DEACTIVATE=1"
+            fi
+        fi
+        return 0
+    fi
+
+    # Respect manually activated environments.
+    if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -z "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" ]]; then
+        print_debug "Manual virtual environment detected; skipping auto-uv-env actions"
+        return 0
+    fi
+
+    print_debug "Resolved project root: $project_root"
+
+    local venv_path="$project_root/$VENV_DIR"
     local py_version
-    py_version=$(get_python_version "$dir" 2>/dev/null || echo "")
+    py_version=$(get_python_version "$project_root" 2>/dev/null || echo "")
 
     print_debug "Virtual environment path: $venv_path"
     print_debug "Detected Python version: ${py_version:-none}"
@@ -231,20 +311,29 @@ diagnose_environment() {
 
     # Check project structure
     echo "Project Structure:"
-    if [[ -f "$dir/pyproject.toml" ]]; then
-        echo "✅ pyproject.toml found"
+    local project_root="" root_status=0
+    project_root=$(find_project_root "$dir") || root_status=$?
+
+    if [[ $root_status -eq 0 ]] && [[ -n "$project_root" ]]; then
+        echo "✅ pyproject.toml found (project root: $project_root)"
         local py_version
-        py_version=$(get_python_version "$dir" 2>/dev/null || echo "")
+        py_version=$(get_python_version "$project_root" 2>/dev/null || echo "")
         if [[ -n "$py_version" ]]; then
             echo "ℹ️ Required Python: $py_version"
         else
             echo "⚠️  No requires-python found in pyproject.toml"
         fi
+    elif [[ $root_status -eq 2 ]]; then
+        echo "⚠️  auto-uv-env disabled by .auto-uv-env-ignore in current path"
     else
-        echo "❌ No pyproject.toml found"
+        echo "❌ No pyproject.toml found in current or parent directories"
     fi
 
-    local venv_path="$dir/$VENV_DIR"
+    local venv_base="$dir"
+    if [[ -n "$project_root" ]]; then
+        venv_base="$project_root"
+    fi
+    local venv_path="$venv_base/$VENV_DIR"
     if [[ -d "$venv_path" ]]; then
         echo "✅ Virtual environment exists: $venv_path"
         if [[ -f "$venv_path/bin/activate" ]]; then
@@ -275,7 +364,7 @@ diagnose_environment() {
         echo "⚠️  Directory not writable: $dir"
     fi
 
-    if [[ -f "$dir/pyproject.toml" ]] && [[ ! -r "$dir/pyproject.toml" ]]; then
+    if [[ -n "$project_root" ]] && [[ -f "$project_root/pyproject.toml" ]] && [[ ! -r "$project_root/pyproject.toml" ]]; then
         echo "⚠️  pyproject.toml not readable"
     fi
 

@@ -10,15 +10,91 @@ export _AUTO_UV_ENV_ACTIVATION_DIR=""
 
 # Only set up if auto-uv-env is available
 if command -v auto-uv-env >/dev/null 2>&1; then
+    _auto_uv_env_find_project_dir() {
+        local dir="$PWD"
+        while true; do
+            if [[ -f "$dir/.auto-uv-env-ignore" ]]; then
+                return 2
+            fi
+            if [[ -f "$dir/pyproject.toml" ]]; then
+                echo "$dir"
+                return 0
+            fi
+            [[ "$dir" == "/" ]] && return 1
+            dir="${dir%/*}"
+            [[ -z "$dir" ]] && dir="/"
+        done
+    }
+
+    _auto_uv_env_is_within_dir() {
+        local path="$1"
+        local base="$2"
+
+        [[ -n "$base" ]] || return 1
+
+        if [[ "$base" != "/" ]]; then
+            base="${base%/}"
+        fi
+        if [[ "$path" != "/" ]]; then
+            path="${path%/}"
+        fi
+
+        if [[ "$base" == "/" ]]; then
+            [[ "$path" == /* ]]
+        else
+            [[ "$path" == "$base" || "$path" == "$base/"* ]]
+        fi
+    }
+
+    _auto_uv_env_project_from_venv_path() {
+        local venv_path="$1"
+        local venv_dir="${AUTO_UV_ENV_VENV_NAME:-.venv}"
+        local suffix="/$venv_dir"
+
+        case "$venv_path" in
+            *"$suffix")
+                echo "${venv_path%"$suffix"}"
+                ;;
+            *)
+                echo "$PWD"
+                ;;
+        esac
+    }
+
     # Function to check and activate UV environments
     auto_uv_env() {
-        # Performance optimization: Skip if no pyproject.toml
-        if [[ ! -f "pyproject.toml" ]]; then
-            # Handle deactivation if we left a Python project
+        # If we're in a managed venv, first verify that it still exists.
+        if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -n "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" ]] && _auto_uv_env_is_within_dir "$PWD" "${_AUTO_UV_ENV_ACTIVATION_DIR}"; then
+            if [[ ! -d "${VIRTUAL_ENV:-}" ]]; then
+                if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
+                    echo -e '\033[0;33m⚠️\033[0m  Virtual environment was deleted, cleaning up...'
+                fi
+                unset VIRTUAL_ENV
+                unset _AUTO_UV_ENV_ACTIVATION_DIR
+                unset AUTO_UV_ENV_PYTHON_VERSION
+            fi
+        fi
+
+        local project_dir="" project_status=0
+        project_dir=$(_auto_uv_env_find_project_dir) || project_status=$?
+
+        # Ignore marker in current path takes precedence over parent project roots.
+        if [[ $project_status -eq 2 ]]; then
             if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -n "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" ]]; then
-                # Only deactivate if we've actually left the project tree
-                if [[ "$PWD" != "${_AUTO_UV_ENV_ACTIVATION_DIR}"* ]]; then
-                    # Deactivate and clean up
+                if command -v deactivate >/dev/null 2>&1; then
+                    deactivate
+                fi
+                unset _AUTO_UV_ENV_ACTIVATION_DIR
+                unset AUTO_UV_ENV_PYTHON_VERSION
+                [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
+            fi
+            return 0
+        fi
+
+        # No project in current tree: only handle deactivation when leaving managed tree.
+        if [[ $project_status -ne 0 ]] || [[ -z "$project_dir" ]]; then
+            if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -n "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" ]]; then
+                if ! _auto_uv_env_is_within_dir "$PWD" "${_AUTO_UV_ENV_ACTIVATION_DIR}"; then
                     if command -v deactivate >/dev/null 2>&1; then
                         deactivate
                     fi
@@ -30,32 +106,19 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             return 0
         fi
 
-        # Performance optimization: If we're already in the right venv, skip the check
-        # But first verify the virtual environment still exists
-        if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ "$PWD" == "${_AUTO_UV_ENV_ACTIVATION_DIR:-}"* ]]; then
-            # Check if the virtual environment directory still exists
-            if [[ -d "${VIRTUAL_ENV:-}" ]]; then
-                # We're still in the same project tree with an active venv
-                return 0
-            else
-                # Virtual environment was deleted, clean up the state
-                if [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]]; then
-                    echo -e '\033[0;33m⚠️\033[0m  Virtual environment was deleted, cleaning up...'
-                fi
-                unset VIRTUAL_ENV
-                unset _AUTO_UV_ENV_ACTIVATION_DIR
-                unset AUTO_UV_ENV_PYTHON_VERSION
-                # Continue to check if we need to recreate it
-            fi
+        # Managed venv already active for this discovered project root.
+        if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" == "$project_dir" ]] && [[ -d "${VIRTUAL_ENV:-}" ]]; then
+            return 0
         fi
 
         # Performance optimization: Batch check for .venv existence
         local venv_dir="${AUTO_UV_ENV_VENV_NAME:-.venv}"
+        local project_venv_path="$project_dir/$venv_dir"
         # Single stat call is faster than separate -d and -f checks
-        if [[ -f "$venv_dir/bin/activate" ]] && [[ -z "${VIRTUAL_ENV:-}" ]]; then
+        if [[ -f "$project_venv_path/bin/activate" ]] && [[ -z "${VIRTUAL_ENV:-}" ]]; then
             # Venv exists and we're not in any venv, just activate it
-            source "$venv_dir/bin/activate"
-            export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
+            source "$project_venv_path/bin/activate"
+            export _AUTO_UV_ENV_ACTIVATION_DIR="$project_dir"
             local python_version python_full_version
             # Use shell parameter expansion instead of cut for performance
             # Handle case where python might not be available yet in UV environments
@@ -81,7 +144,8 @@ if command -v auto-uv-env >/dev/null 2>&1; then
         local state_file="/tmp/auto-uv-env.$.state"
 
         # Get state from auto-uv-env
-        if ! auto-uv-env --check-safe "$PWD" > "$state_file" 2>&1; then
+        if ! auto-uv-env --check-safe "$project_dir" > "$state_file" 2>&1; then
+            rm -f "$state_file"
             return 0  # UV not available or other error
         fi
 
@@ -121,14 +185,14 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                     if ! uv python install "$python_version" 2>/dev/null; then
                         [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;34m🐍\033[0m Python $python_version not available, using default"
                     fi
-                    if ! uv venv --python "$python_version" 2>/dev/null; then
-                        if ! uv venv 2>/dev/null; then
+                    if ! (cd "$project_dir" && uv venv --python "$python_version" 2>/dev/null); then
+                        if ! (cd "$project_dir" && uv venv 2>/dev/null); then
                             echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
                             return 1
                         fi
                     fi
                 else
-                    if ! uv venv 2>/dev/null; then
+                    if ! (cd "$project_dir" && uv venv 2>/dev/null); then
                         echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
                         return 1
                     fi
@@ -137,9 +201,10 @@ if command -v auto-uv-env >/dev/null 2>&1; then
 
                 # After creating a new environment, activate it
                 local venv_dir="${AUTO_UV_ENV_VENV_NAME:-.venv}"
-                if [[ -f "$venv_dir/bin/activate" ]]; then
-                    source "$venv_dir/bin/activate"
-                    export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
+                local created_venv_path="$project_dir/$venv_dir"
+                if [[ -f "$created_venv_path/bin/activate" ]]; then
+                    source "$created_venv_path/bin/activate"
+                    export _AUTO_UV_ENV_ACTIVATION_DIR="$project_dir"
                     local auto_uv_env_python_version_val python_full_version
                     if python_full_version=$(python --version 2>&1); then
                         auto_uv_env_python_version_val="${python_full_version#Python }"
@@ -161,7 +226,7 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             if [[ -n "$activate_path" ]] && [[ -f "$activate_path/bin/activate" ]]; then
                 source "$activate_path/bin/activate"
                 # Track where we activated from
-                export _AUTO_UV_ENV_ACTIVATION_DIR="$PWD"
+                export _AUTO_UV_ENV_ACTIVATION_DIR="$(_auto_uv_env_project_from_venv_path "$activate_path")"
                 local auto_uv_env_python_version_val python_full_version
                 # Use shell parameter expansion instead of cut for performance
                 # Handle case where python might not be available yet in UV environments
@@ -186,11 +251,12 @@ if command -v auto-uv-env >/dev/null 2>&1; then
     autoload -U add-zsh-hook
     add-zsh-hook chpwd auto_uv_env
 
-    # Lazy loading: Only check on startup if we're already in a Python project
-    # This saves ~10ms on shell startup for non-Python directories
-    if [[ -f "pyproject.toml" ]]; then
+    # Lazy loading: check on startup only if we're already in a managed project tree.
+    _auto_uv_env_startup_project_dir="$(_auto_uv_env_find_project_dir)" || true
+    if [[ -n "${_auto_uv_env_startup_project_dir:-}" ]]; then
         auto_uv_env
     fi
+    unset _auto_uv_env_startup_project_dir
 else
     # Helpful message if auto-uv-env is not installed
     auto_uv_env() {

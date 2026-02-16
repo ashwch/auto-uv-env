@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [
-    { name = "Monty", email = "monty@example.com" }
+    { name = "Ashwini Chaudhary", email = "ashwini@ashwch.com" }
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -31,9 +31,9 @@ classifiers = [
 keywords = ["python", "virtual-environment", "uv", "shell", "automation"]
 
 [project.urls]
-Homepage = "https://github.com/monty/auto-uv-env"
-Repository = "https://github.com/monty/auto-uv-env.git"
-Issues = "https://github.com/monty/auto-uv-env/issues"
+Homepage = "https://github.com/ashwch/auto-uv-env"
+Repository = "https://github.com/ashwch/auto-uv-env.git"
+Issues = "https://github.com/ashwch/auto-uv-env/issues"
 
 [tool.uv]
 dev-dependencies = [
