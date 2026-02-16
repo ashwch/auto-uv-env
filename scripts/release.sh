@@ -261,7 +261,8 @@ push_to_github() {
 
 # Calculate SHA256 for release
 calculate_sha256() {
-    print_step "Calculating SHA256 for release tarball"
+    # Keep progress output on stderr so command substitution captures only the hash.
+    print_step "Calculating SHA256 for release tarball" >&2
 
     local tarball_url="https://github.com/$PROJECT_REPO/archive/v$VERSION.tar.gz"
     local sha256
@@ -270,68 +271,51 @@ calculate_sha256() {
     echo "$sha256"
 }
 
+# Extract changelog section for a specific version (without the version header).
+extract_changelog_section() {
+    local target_version="$1"
+    awk -v version="$target_version" '
+        $0 ~ "^## \\[" version "\\]" { in_section=1; next }
+        in_section && $0 ~ "^## \\[" { exit }
+        in_section { print }
+    ' "$PROJECT_DIR/CHANGELOG.md"
+}
+
 # Create GitHub release
 create_github_release() {
     print_step "Creating GitHub release"
 
     cd "$PROJECT_DIR"
 
-    # Generate release notes from CHANGELOG
+    # Generate release notes from CHANGELOG using the standardized release format.
     local release_notes_file="/tmp/release-notes-v$VERSION.md"
+    local changelog_section
+    local formatted_changelog
+    changelog_section="$(extract_changelog_section "$VERSION" | sed '/^[[:space:]]*$/d')"
+    formatted_changelog="$(printf '%s\n' "$changelog_section" | \
+        sed -e 's/^### Added$/### ✅ Added/' \
+            -e 's/^### Changed$/### 🔧 Changed/' \
+            -e 's/^### Fixed$/### 🐛 Fixed/')"
+
+    if [[ -z "${formatted_changelog//[[:space:]]/}" ]]; then
+        formatted_changelog=$'### ✅ Added\n- See CHANGELOG.md for release details.'
+    fi
 
     cat > "$release_notes_file" << EOF
-# 🚀 auto-uv-env v$VERSION
+## What's New in v$VERSION
 
-## 📦 Installation
+$formatted_changelog
 
-### Homebrew (Recommended)
-\`\`\`bash
-brew tap ashwch/tap
-brew install auto-uv-env
-\`\`\`
-
-### Manual Installation
-\`\`\`bash
-curl -LO https://github.com/$PROJECT_REPO/archive/v$VERSION.tar.gz
-tar -xzf v$VERSION.tar.gz
-cd auto-uv-env-$VERSION
-sudo cp auto-uv-env /usr/local/bin/
-sudo mkdir -p /usr/local/share/auto-uv-env
-sudo cp share/auto-uv-env/* /usr/local/share/auto-uv-env/
-\`\`\`
-
-## ⚡ Quick Start
-
-Add to your shell configuration:
-
-### Zsh
-\`\`\`bash
-echo 'source \$(brew --prefix)/share/auto-uv-env/auto-uv-env.zsh' >> ~/.zshrc
-\`\`\`
-
-### Bash
-\`\`\`bash
-echo 'source \$(brew --prefix)/share/auto-uv-env/auto-uv-env.bash' >> ~/.bashrc
-\`\`\`
-
-### Fish
-\`\`\`bash
-echo 'source (brew --prefix)/share/auto-uv-env/auto-uv-env.fish' >> ~/.config/fish/config.fish
-\`\`\`
-
-## 📋 Requirements
-
-- [UV](https://github.com/astral-sh/uv) - Fast Python package manager
-- Python projects with \`pyproject.toml\`
-- Bash, ZSH, or Fish shell
-
----
-
-**Ready for production use!** 🎉
+### 🧪 Testing
+- ./test/test.sh
+- ./test/test-security.sh
+- ./test/test-shell-integrations.sh
+- ./auto-uv-env --validate
+- uv tool run pre-commit run --all-files
 EOF
 
     gh release create "v$VERSION" \
-        --title "auto-uv-env v$VERSION" \
+        --title "Release v$VERSION" \
         --notes-file "$release_notes_file" \
         --latest
 
