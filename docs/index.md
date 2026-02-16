@@ -9,17 +9,19 @@ permalink: /
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![UV](https://img.shields.io/badge/UV-Required-blue.svg)](https://github.com/astral-sh/uv)
 
-Automatic UV-based Python virtual environment management for your shell. No more manual `source .venv/bin/activate`!
+Automatic UV-based Python virtual environment management for your shell.
+
+`auto-uv-env` watches directory changes, discovers the nearest `pyproject.toml`, creates a project-local virtual environment with `uv`, and activates/deactivates it automatically.
 
 ## Why auto-uv-env?
 
-- 🚀 **Automatic activation** - Activates Python virtual environments when you `cd` into a project
-- 🐍 **UV-powered** - Uses [UV](https://github.com/astral-sh/uv) for lightning-fast environment creation
-- 📦 **pyproject.toml aware** - Reads Python version from `requires-python`
-- 🎯 **Zero configuration** - Works out of the box
-- 🐚 **Multi-shell support** - Works with Zsh, Bash, and Fish
-- ⚡ **Performance optimized** - Zero overhead for non-Python dirs, 2-3ms for Python projects
-- 🧹 **Clean** - Automatically deactivates when leaving Python projects
+- 🚀 Automatic activation when entering Python projects
+- 🐍 UV-powered environment creation and Python installation
+- 📦 `pyproject.toml` aware (`requires-python`)
+- 🧠 Parent-directory project discovery (works from subdirectories)
+- 🧹 Clean deactivation when leaving managed project trees
+- 🛡️ Manual venv protection (does not override manually activated environments)
+- ⚡ Optimized for low overhead in non-project directories
 
 ## Quick Start
 
@@ -56,47 +58,53 @@ source (brew --prefix)/share/auto-uv-env/auto-uv-env.fish
 ### 3. Start using it!
 
 ```bash
-cd my-python-project/
+cd my-python-project/src/app
 # 🐍 Setting up Python 3.11 with UV...
 # ✅ Virtual environment created
-# 🚀 UV environment activated (Python 3.11.5)
+# 🚀 UV environment activated (Python 3.11.x)
 ```
 
 ## How It Works
 
-1. When you `cd` into a directory, auto-uv-env checks for `pyproject.toml`
-2. If no `pyproject.toml` exists, it skips processing (fast-path optimization)
-3. If found, it reads the `requires-python` field
-4. Uses UV to create a virtual environment with the correct Python version
-5. Activates the environment automatically
-6. Tracks which directory activated the environment
-7. When you leave the project tree, it deactivates the environment
-8. Manual virtual environments are never deactivated
+1. Walk upward from `$PWD` to find the nearest `pyproject.toml`.
+2. If `.auto-uv-env-ignore` appears first, activation is skipped for that subtree.
+3. Read `requires-python` from the discovered project root.
+4. Create `<project-root>/.venv` when missing.
+5. Activate on entry and deactivate only environments managed by auto-uv-env.
+6. If a manual venv is active, auto-uv-env does not override it.
 
 ## Features
 
-### 🚀 Performance Optimized (v1.0.7)
-- **Zero overhead**: Non-Python directories have no performance impact
-- **Lazy loading**: Shell startup only runs code when in Python projects
-- **Command caching**: UV and Python paths cached to avoid lookups
-- **Native parsing**: No Python subprocess for TOML parsing (saves 50-100ms)
-- **Shell built-ins**: Replaced external commands with parameter expansion
-- **Measured impact**: 2-3ms for Python projects, 0ms for everything else
+### ⚡ Performance and Reliability
+
+- v1.0.7 delivered roughly 93% startup overhead improvement.
+- Typical startup overhead is low in Python projects and effectively near-zero in non-project directories.
+- Directory-change overhead is typically sub-millisecond.
+- Command path caching and lazy loading keep common shell paths fast.
 
 ### 🎯 Intelligent Activation
-- **Project-aware**: Only activates in directories with `pyproject.toml`
-- **Version matching**: Respects `requires-python` from pyproject.toml
-- **Subdirectory support**: Stay activated in project subdirectories
-- **Manual venv protection**: Won't interfere with manually activated environments
+
+- Project-aware parent discovery from subdirectories
+- `requires-python` version matching from `pyproject.toml`
+- Ignore-file precedence with `.auto-uv-env-ignore`
+- Manual venv protection to avoid breaking user-managed workflows
 
 ### 🛡️ Security First
-- **Path validation**: Prevents directory traversal attacks
-- **Command injection protection**: Safe handling of user input
-- **Ignore file support**: Use `.auto-uv-env-ignore` to disable in specific directories
+
+- Path validation blocks traversal-style venv names
+- Safe directive parsing in shell adapters
+- Security checks in CI and local quality gates
+
+## Documentation
+
+- Installation: [`/installation/`]({{ "/installation/" | relative_url }})
+- Usage and troubleshooting: [`/usage/`]({{ "/usage/" | relative_url }})
+- Contributor guide: [`/contributing/`]({{ "/contributing/" | relative_url }})
+- Repo contributor entrypoint: [CONTRIBUTE.md](https://github.com/ashwch/auto-uv-env/blob/main/CONTRIBUTE.md)
+- Release runbook: [RELEASE.md](https://github.com/ashwch/auto-uv-env/blob/main/RELEASE.md)
 
 ## Requirements
 
 - [UV](https://github.com/astral-sh/uv) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - A shell (Zsh, Bash, or Fish)
 - Python projects with `pyproject.toml`
-

@@ -224,8 +224,9 @@ If you get "UV not found" error:
 ### Performance issues
 
 auto-uv-env is optimized for performance:
-- Non-Python directories: ~4ms overhead (fast-path optimization)
-- Python directories: ~50-100ms (includes environment checking)
+- Non-project directories: effectively near-zero overhead in common workflows
+- Python project directories: low overhead plus environment checks
+- Directory changes: typically sub-millisecond before any first-time venv creation
 
 If experiencing slow shell startup:
 1. Ensure you have the latest version
