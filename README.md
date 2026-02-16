@@ -142,11 +142,24 @@ ACTIVATE=/path/to/project/.venv
 - Typical startup overhead is low in Python projects and effectively near-zero in non-project directories.
 - Directory-change overhead is typically sub-millisecond.
 
+## Choosing This Tool
+
+`auto-uv-env` is a strong fit when you want:
+
+- UV-first Python environment automation (no extra orchestration layer)
+- `pyproject.toml`-driven project discovery
+- Automatic activate/deactivate across Bash, Zsh, and Fish
+- Project-local `.venv` behavior with minimal setup
+
+If you are deciding between this and `direnv`, `mise`, `pyenv-virtualenv`, or shell-specific plugins, see the decision guide:
+[`docs/alternatives.md`](docs/alternatives.md).
+
 ## Documentation Map
 
 - Installation details: [`docs/installation.md`](docs/installation.md)
 - Usage and troubleshooting: [`docs/usage.md`](docs/usage.md)
 - Contributing guide: [`docs/contributing.md`](docs/contributing.md)
+- Alternatives decision guide: [`docs/alternatives.md`](docs/alternatives.md)
 - Contributor quick entrypoint: [`CONTRIBUTE.md`](CONTRIBUTE.md)
 - Release runbook: [`RELEASE.md`](RELEASE.md)
 
