@@ -9,15 +9,103 @@ set -gx _AUTO_UV_ENV_ACTIVATION_DIR ""
 
 # Only set up if auto-uv-env is available
 if command -v auto-uv-env >/dev/null 2>&1
+    function _auto_uv_env_find_project_dir
+        set -l dir $PWD
+
+        while true
+            if test -f "$dir/.auto-uv-env-ignore"
+                return 2
+            end
+
+            if test -f "$dir/pyproject.toml"
+                echo $dir
+                return 0
+            end
+
+            if test "$dir" = "/"
+                return 1
+            end
+
+            set dir (string replace -r '/[^/]+$' '' "$dir")
+            if test -z "$dir"
+                set dir "/"
+            end
+        end
+    end
+
+    function _auto_uv_env_is_within_dir
+        set -l path "$argv[1]"
+        set -l base "$argv[2]"
+
+        if test -z "$base"
+            return 1
+        end
+
+        if test "$base" != "/"
+            set base (string replace -r '/+$' '' "$base")
+        end
+        if test "$path" != "/"
+            set path (string replace -r '/+$' '' "$path")
+        end
+
+        if test "$base" = "/"
+            string match -rq '^/' "$path"
+            return $status
+        end
+
+        set -l base_regex (string escape --style=regex "$base")
+        string match -rq "^$base_regex(/|$)" "$path"
+    end
+
+    function _auto_uv_env_project_from_venv_path
+        set -l venv_path "$argv[1]"
+        set -l venv_dir (test -n "$AUTO_UV_ENV_VENV_NAME"; and echo $AUTO_UV_ENV_VENV_NAME; or echo ".venv")
+        set -l suffix "/$venv_dir"
+        set -l suffix_regex (string escape --style=regex "$suffix")
+
+        if string match -rq "$suffix_regex$" "$venv_path"
+            echo (string replace -r "$suffix_regex$" "" "$venv_path")
+        else
+            echo "$PWD"
+        end
+    end
+
     # Function to check and activate UV environments
     function auto_uv_env
-        # Performance optimization: Skip if no pyproject.toml
-        if not test -f "pyproject.toml"
-            # Handle deactivation if we left a Python project
+        # If we're in a managed venv, first verify that it still exists.
+        if test -n "$VIRTUAL_ENV"; and test -n "$_AUTO_UV_ENV_ACTIVATION_DIR"; and _auto_uv_env_is_within_dir "$PWD" "$_AUTO_UV_ENV_ACTIVATION_DIR"
+            if not test -d "$VIRTUAL_ENV"
+                if test "$AUTO_UV_ENV_QUIET" != "1"
+                    echo -e '\033[0;33m⚠️\033[0m  Virtual environment was deleted, cleaning up...'
+                end
+                set -e VIRTUAL_ENV
+                set -e _AUTO_UV_ENV_ACTIVATION_DIR
+                set -e AUTO_UV_ENV_PYTHON_VERSION
+            end
+        end
+
+        set -l project_dir (_auto_uv_env_find_project_dir)
+        set -l project_status $status
+
+        # Ignore marker in current path takes precedence over parent project roots.
+        if test "$project_status" -eq 2
             if test -n "$VIRTUAL_ENV"; and test -n "$_AUTO_UV_ENV_ACTIVATION_DIR"
-                # Only deactivate if we've actually left the project tree
-                if not string match -q "$_AUTO_UV_ENV_ACTIVATION_DIR*" "$PWD"
-                    # Deactivate and clean up
+                if command -v deactivate >/dev/null 2>&1
+                    deactivate
+                end
+                set -e _AUTO_UV_ENV_ACTIVATION_DIR
+                set -e AUTO_UV_ENV_PYTHON_VERSION
+                if test "$AUTO_UV_ENV_QUIET" != "1"
+                    echo -e '\033[0;33m⬇️\033[0m  Deactivated UV environment'
+                end
+            end
+            return 0
+        end
+
+        # No project in current tree: only handle deactivation when leaving managed tree.
+        if test "$project_status" -ne 0 -o -z "$project_dir"
+            if test -n "$VIRTUAL_ENV"; and test -n "$_AUTO_UV_ENV_ACTIVATION_DIR"
+                if not _auto_uv_env_is_within_dir "$PWD" "$_AUTO_UV_ENV_ACTIVATION_DIR"
                     if command -v deactivate >/dev/null 2>&1
                         deactivate
                     end
@@ -31,32 +119,19 @@ if command -v auto-uv-env >/dev/null 2>&1
             return 0
         end
 
-        # Performance optimization: If we're already in the right venv, skip the check
-        # But first verify the virtual environment still exists
-        if test -n "$VIRTUAL_ENV"; and string match -q "$_AUTO_UV_ENV_ACTIVATION_DIR*" "$PWD"
-            # Check if the virtual environment directory still exists
-            if test -d "$VIRTUAL_ENV"
-                # We're still in the same project tree with an active venv
-                return 0
-            else
-                # Virtual environment was deleted, clean up the state
-                if test "$AUTO_UV_ENV_QUIET" != "1"
-                    echo -e '\033[0;33m⚠️\033[0m  Virtual environment was deleted, cleaning up...'
-                end
-                set -e VIRTUAL_ENV
-                set -e _AUTO_UV_ENV_ACTIVATION_DIR
-                set -e AUTO_UV_ENV_PYTHON_VERSION
-                # Continue to check if we need to recreate it
-            end
+        # Managed venv already active for this discovered project root.
+        if test -n "$VIRTUAL_ENV"; and test "$_AUTO_UV_ENV_ACTIVATION_DIR" = "$project_dir"; and test -d "$VIRTUAL_ENV"
+            return 0
         end
 
         # Performance optimization: Batch check for .venv existence
         set -l venv_dir (test -n "$AUTO_UV_ENV_VENV_NAME"; and echo $AUTO_UV_ENV_VENV_NAME; or echo ".venv")
+        set -l project_venv_path "$project_dir/$venv_dir"
         # Single stat call is faster than separate -d and -f checks
-        if test -f "$venv_dir/bin/activate.fish" -a -z "$VIRTUAL_ENV"
+        if test -f "$project_venv_path/bin/activate.fish" -a -z "$VIRTUAL_ENV"
             # Venv exists and we're not in any venv, just activate it
-            source "$venv_dir/bin/activate.fish"
-            set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+            source "$project_venv_path/bin/activate.fish"
+            set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$project_dir"
             # Use fish string manipulation instead of cut for performance
             # Handle case where python might not be available yet in UV environments
             if set -l python_full_version (python --version 2>&1)
@@ -83,7 +158,8 @@ if command -v auto-uv-env >/dev/null 2>&1
         set -l state_file "/tmp/auto-uv-env."(echo %self)".state"
 
         # Get state from auto-uv-env
-        if not auto-uv-env --check-safe $PWD > $state_file 2>&1
+        if not auto-uv-env --check-safe "$project_dir" > $state_file 2>&1
+            rm -f $state_file
             return 0  # UV not available or other error
         end
 
@@ -137,6 +213,7 @@ if command -v auto-uv-env >/dev/null 2>&1
                     echo -e "\033[0;34m$msg_setup\033[0m"
                 end
 
+                set -l old_pwd $PWD
                 if test -n "$python_version"
                     # Try specific Python version first
                     if not uv python install "$python_version" 2>/dev/null
@@ -144,17 +221,23 @@ if command -v auto-uv-env >/dev/null 2>&1
                             echo -e "\033[0;34m🐍\033[0m Python $python_version not available, using default"
                         end
                     end
+                    cd "$project_dir"
                     if not uv venv --python "$python_version" 2>/dev/null
                         if not uv venv 2>/dev/null
+                            cd "$old_pwd"
                             echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
                             return 1
                         end
                     end
+                    cd "$old_pwd"
                 else
+                    cd "$project_dir"
                     if not uv venv 2>/dev/null
+                        cd "$old_pwd"
                         echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
                         return 1
                     end
+                    cd "$old_pwd"
                 end
                 if test "$AUTO_UV_ENV_QUIET" != "1"
                     echo -e "\033[0;32m✅\033[0m Virtual environment created"
@@ -162,9 +245,10 @@ if command -v auto-uv-env >/dev/null 2>&1
 
                 # After creating a new environment, activate it
                 set -l venv_dir (test -n "$AUTO_UV_ENV_VENV_NAME"; and echo $AUTO_UV_ENV_VENV_NAME; or echo ".venv")
-                if test -f "$venv_dir/bin/activate.fish"
-                    source "$venv_dir/bin/activate.fish"
-                    set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+                set -l created_venv_path "$project_dir/$venv_dir"
+                if test -f "$created_venv_path/bin/activate.fish"
+                    source "$created_venv_path/bin/activate.fish"
+                    set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$project_dir"
                     if set -l python_full_version (python --version 2>&1)
                         set -l python_version (string replace "Python " "" "$python_full_version")
                         if test "$AUTO_UV_ENV_QUIET" != "1"
@@ -185,7 +269,7 @@ if command -v auto-uv-env >/dev/null 2>&1
             if test -n "$activate_path" -a -f "$activate_path/bin/activate.fish"
                 source "$activate_path/bin/activate.fish"
                 # Track where we activated from
-                set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+                set -gx _AUTO_UV_ENV_ACTIVATION_DIR (_auto_uv_env_project_from_venv_path "$activate_path")
                 # Use fish string manipulation instead of cut for performance
                 # Handle case where python might not be available yet in UV environments
                 if set -l python_full_version (python --version 2>&1)
@@ -207,7 +291,7 @@ if command -v auto-uv-env >/dev/null 2>&1
                 set -gx _OLD_VIRTUAL_PATH $PATH
                 set -gx PATH "$activate_path/bin" $PATH
                 # Track where we activated from
-                set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$PWD"
+                set -gx _AUTO_UV_ENV_ACTIVATION_DIR (_auto_uv_env_project_from_venv_path "$activate_path")
                 # Use fish string manipulation instead of cut for performance
                 # Handle case where python might not be available yet in UV environments
                 if set -l python_full_version (python --version 2>&1)
@@ -232,9 +316,9 @@ if command -v auto-uv-env >/dev/null 2>&1
         auto_uv_env
     end
 
-    # Lazy loading: Only check on startup if we're already in a Python project
-    # This saves ~10ms on shell startup for non-Python directories
-    if test -f "pyproject.toml"
+    # Lazy loading: check on startup only if we're already in a managed project tree.
+    set -l _auto_uv_env_startup_project_dir (_auto_uv_env_find_project_dir)
+    if test $status -eq 0; and test -n "$_auto_uv_env_startup_project_dir"
         auto_uv_env
     end
 else
