@@ -100,6 +100,7 @@ cd my-python-project/src/app
 - Installation: [`/installation/`]({{ "/installation/" | relative_url }})
 - Usage and troubleshooting: [`/usage/`]({{ "/usage/" | relative_url }})
 - Contributor guide: [`/contributing/`]({{ "/contributing/" | relative_url }})
+- Deciding between tools: [`/alternatives/`]({{ "/alternatives/" | relative_url }})
 - Repo contributor entrypoint: [CONTRIBUTE.md](https://github.com/ashwch/auto-uv-env/blob/main/CONTRIBUTE.md)
 - Release runbook: [RELEASE.md](https://github.com/ashwch/auto-uv-env/blob/main/RELEASE.md)
 
