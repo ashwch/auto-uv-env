@@ -147,6 +147,8 @@ ACTIVATE=/path/to/project/.venv
 - Installation details: [`docs/installation.md`](docs/installation.md)
 - Usage and troubleshooting: [`docs/usage.md`](docs/usage.md)
 - Contributing guide: [`docs/contributing.md`](docs/contributing.md)
+- Contributor quick entrypoint: [`CONTRIBUTE.md`](CONTRIBUTE.md)
+- Release runbook: [`RELEASE.md`](RELEASE.md)
 
 ## For Contributors
 
@@ -165,6 +167,9 @@ If your shell currently has an active venv, use a sanitized test invocation:
 ```bash
 env -u VIRTUAL_ENV -u _AUTO_UV_ENV_ACTIVATION_DIR -u AUTO_UV_ENV_PYTHON_VERSION ./test/test.sh
 ```
+
+Release reminder: merging a PR does not create a GitHub release. Releases are published on `v*` tag pushes; follow [`RELEASE.md`](RELEASE.md).
+Docs publishing reminder: `https://auto-uv-env.ashwch.com/` is deployed by `docs.yml` on pushes to `main`.
 
 ## LLM Agent Docs
 

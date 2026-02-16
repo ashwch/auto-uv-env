@@ -119,6 +119,8 @@ auto-uv-env/
 +-- .github/workflows/                 # CI/release/docs automation
 +-- pyproject.toml                     # Package metadata + dev tooling config
 +-- README.md                          # Human-facing project overview
++-- CONTRIBUTE.md                      # Contributor quick entrypoint
++-- RELEASE.md                         # Canonical release runbook
 +-- CLAUDE.md                          # Minimal source of truth pointer for Claude
 +-- AGENTS.md                          # Canonical agent operating guide
 ```
@@ -168,6 +170,15 @@ Adapters track `_AUTO_UV_ENV_ACTIVATION_DIR` to avoid deactivating unrelated/man
 - Venv directory name is validated and path traversal is blocked.
 - Shell state mutation stays in shell adapters, not in the main script.
 - `--check` is deprecated; use `--check-safe`.
+
+### Release Contract
+
+- GitHub releases are tag-driven (`v*`), not merge-driven.
+- Merging a PR into `main` does not publish a release by itself.
+- Docs publishing is main-branch-driven via `docs.yml`; tag pushes alone do not deploy docs.
+- Release tag, `auto-uv-env` `VERSION`, and `pyproject.toml` version must stay aligned.
+- Preferred release naming convention is `Release vX.Y.Z` with structured notes sections.
+- Use `RELEASE.md` as the source of truth for release mechanics and fallback procedures.
 
 ---
 
@@ -242,6 +253,10 @@ uv tool run pre-commit run --all-files
 # Release helpers
 ./scripts/check-version-consistency.sh
 ./scripts/bump-version.sh patch --dry-run
+./scripts/release.sh 1.1.3 --dry-run
+./scripts/release.sh 1.1.3
+gh release view v1.1.3
+gh run list --workflow docs.yml --branch main --limit 5
 ```
 
 ---
@@ -257,6 +272,15 @@ Core test suites now sanitize environment variables internally; for ad-hoc runs,
 
 3. Performance baseline to preserve: v1.0.7 achieved ~93% startup overhead improvement.
 Non-project directories should remain effectively near-zero overhead via lazy loading and cached command paths.
+
+4. Releases are created on tag push (`v*`), not on PR merge.
+If someone asks why there is no release after merge, check whether a new tag was created.
+
+5. Release automation can partially succeed.
+Validate release state directly with `gh release view vX.Y.Z` even if the `release.yml` workflow reports failure.
+
+6. GitHub Pages deploy is asynchronous.
+After merging docs updates, confirm the latest successful `docs.yml` run before expecting `https://auto-uv-env.ashwch.com/` to reflect changes.
 
 ---
 

@@ -106,13 +106,13 @@ auto-uv-env respects existing virtual environments:
 ```bash
 # Show version
 auto-uv-env --version
-# Output: auto-uv-env 1.1.1
+# Output: auto-uv-env 1.1.2
 
 # Show help
 auto-uv-env --help
 
 # Check if environment should be activated (safe mode)
-auto-uv-env --check-safe
+auto-uv-env --check-safe [DIR]
 # Output (directive format):
 # CREATE_VENV=1
 # PYTHON_VERSION=3.11
@@ -120,7 +120,7 @@ auto-uv-env --check-safe
 # ACTIVATE=/path/to/project/.venv
 
 # Show diagnostic information
-auto-uv-env --diagnose
+auto-uv-env --diagnose [DIR]
 # Shows: UV version, Python detection, shell info
 
 # Validate configuration
@@ -216,23 +216,23 @@ python -m ipykernel install --user --name=myproject
 
 ### Performance Issues
 
-auto-uv-env v1.0.7 includes major performance optimizations:
-- **Shell startup overhead**: 2-3ms (Python projects), effectively near-zero (non-project directories)
-- **Directory change overhead**: <1ms per `cd` command
+auto-uv-env includes major performance optimizations:
+- **Startup overhead**: low in Python projects and effectively near-zero in non-project directories
+- **Directory change overhead**: typically sub-millisecond per `cd`
 - **First-time environment creation**: 1-5 seconds (UV creates the virtual environment)
-- **Subsequent activations**: Near-instant (uses cached environment)
+- **Subsequent activations**: near-instant (reuses existing `.venv`)
 
-Key optimizations in v1.0.7:
+Key optimizations:
 - Lazy loading (skips activation work in non-project directories)
 - Command path caching
-- Native bash TOML parsing (no Python subprocess)
+- Native shell parsing (no Python subprocess for project metadata)
 - Shell built-ins instead of external commands
 
 If experiencing slow directory changes:
 
 1. **Verify you have the latest version**:
    ```bash
-   auto-uv-env --version  # Should be 1.0.7 or later
+   auto-uv-env --version
    ```
 
 2. **Check for shell conflicts**:
