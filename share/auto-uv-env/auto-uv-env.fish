@@ -88,7 +88,7 @@ if command -v auto-uv-env >/dev/null 2>&1
         set -l activate_status $status
 
         if test "$had_virtual_env_disable_prompt" -eq 1
-            set VIRTUAL_ENV_DISABLE_PROMPT "$old_virtual_env_disable_prompt"
+            set -g VIRTUAL_ENV_DISABLE_PROMPT "$old_virtual_env_disable_prompt"
         else
             set -e VIRTUAL_ENV_DISABLE_PROMPT
         end
