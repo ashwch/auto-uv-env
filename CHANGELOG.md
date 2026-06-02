@@ -5,6 +5,24 @@ All notable changes to auto-uv-env will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-06-02
+
+### Added
+- Add installer regression coverage for extracted temp-directory lifecycle
+- Add recursive re-entry regression coverage for Bash, Zsh, and Fish shell adapters
+- Add explicit project-root-path regression coverage for venv creation from nested subdirectories
+
+### Changed
+- Create managed virtual environments at explicit project-root paths instead of relying on `cd` side effects
+- Improve installer lifecycle documentation and troubleshooting guidance
+- Improve installer release/archive handling contract documentation for contributors
+
+### Fixed
+- Prevent repeated shell-hook re-entry during environment activation
+- Fix Zsh temporary state-file naming to use the correct shell PID
+- Fix installer bug where extracted release files could be deleted before install-time copy steps completed
+- Harden installer cleanup behavior for signal handling and caller-owned temp-directory validation
+
 ## [1.1.3] - 2026-02-16
 
 ### Added
