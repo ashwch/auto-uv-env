@@ -17,8 +17,9 @@ jobs:
       - name: Create Release Archive
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          STAGE_DIR="$RUNNER_TEMP/auto-uv-env-${VERSION}"
-          ARCHIVE_NAME="auto-uv-env-${VERSION}.tar.gz"
+          SAFE_VERSION=${VERSION//\//-}
+          STAGE_DIR="$RUNNER_TEMP/auto-uv-env-${SAFE_VERSION}"
+          ARCHIVE_NAME="auto-uv-env-${SAFE_VERSION}.tar.gz"
 
           # Build the release tarball from a separate staging directory.
           #
@@ -40,7 +41,7 @@ jobs:
           cp README.md LICENSE CHANGELOG.md pyproject.toml "$STAGE_DIR/"
           cp -R share/auto-uv-env/. "$STAGE_DIR/share/auto-uv-env/"
 
-          tar -C "$RUNNER_TEMP" -czf "$ARCHIVE_NAME" "auto-uv-env-${VERSION}"
+          tar -C "$RUNNER_TEMP" -czf "$ARCHIVE_NAME" "auto-uv-env-${SAFE_VERSION}"
           sha256sum "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
 
       - name: Create Release
