@@ -5,6 +5,23 @@ All notable changes to auto-uv-env will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-06-02
+
+### Added
+- Add prompt-preservation regression coverage for Bash, Zsh, and Fish activation/deactivation flows
+- Add release-workflow regression coverage for staged archive creation and tag-name-safe archive naming
+
+### Changed
+- Preserve user prompt styling by disabling prompt mutation only while sourcing activation scripts
+- Clarify prompt ownership and activation behavior in user and contributor docs
+- Build GitHub release archives from a staging directory and explicitly run the archive step with Bash
+
+### Fixed
+- Fix shell prompt styling regression when auto-uv-env activates environments in Bash, Zsh, and Fish
+- Preserve activation-script exit status in shell adapter activation helpers
+- Fix tag-name edge cases in the release archive workflow when tags contain `/`
+- Prevent false-failure release archives caused by tar reading the live checkout while writing output
+
 ## [1.1.4] - 2026-06-02
 
 ### Added
