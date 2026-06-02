@@ -180,6 +180,10 @@ download_and_extract() {
     platform="$1"
     temp_dir="$2"
 
+    if [ -z "$temp_dir" ]; then
+        err "download_and_extract requires a caller-owned temporary directory"
+    fi
+
     # If in test mode, use current directory
     if [ "${AUTO_UV_ENV_TEST_MODE:-0}" = "1" ]; then
         info "using current directory for testing"
@@ -446,7 +450,8 @@ main() {
 
     # Download and extract
     install_temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$install_temp_dir"' EXIT INT TERM
+    trap 'rm -rf "$install_temp_dir"' 0
+    trap 'rm -rf "$install_temp_dir"; exit 1' INT TERM
     source_dir="$(download_and_extract "$platform" "$install_temp_dir")"
 
     # Install files

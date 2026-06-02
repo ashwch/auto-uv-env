@@ -145,7 +145,7 @@ EOF
        MOCK_RELEASE_ROOT="$temp_dir/release-root" \
        AUTO_UV_ENV_BIN_DIR="$home_dir/.local/bin" \
        AUTO_UV_ENV_SHARE_DIR="$home_dir/.local/share/auto-uv-env" \
-       bash "$INSTALLER" -y --verbose >"$log_file" 2>&1; then
+       sh "$INSTALLER" -y --verbose >"$log_file" 2>&1; then
         local ok=0
         [[ -f "$home_dir/.local/bin/auto-uv-env" ]] || ok=1
         [[ -f "$home_dir/.local/share/auto-uv-env/auto-uv-env.bash" ]] || ok=1
