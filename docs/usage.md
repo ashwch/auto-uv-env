@@ -197,17 +197,15 @@ cd project
   -> sourcing ~/.zshrc restores it
 ```
 
-`auto-uv-env` now activates environments with prompt mutation disabled:
-
-```text
-VIRTUAL_ENV_DISABLE_PROMPT=1
-```
+`auto-uv-env` now sets `VIRTUAL_ENV_DISABLE_PROMPT=1` only while sourcing the
+activation script, then restores the prior shell-variable state.
 
 That means:
 
 ```text
 auto-uv-env imports environment variables
 your shell theme keeps control of prompt rendering
+your prior shell state is restored after activation finishes
 ```
 
 ### Repeated "Setting up Python ..." messages

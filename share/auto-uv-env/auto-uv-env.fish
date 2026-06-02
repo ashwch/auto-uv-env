@@ -83,12 +83,12 @@ if command -v auto-uv-env >/dev/null 2>&1
         # Prompt rendering belongs to the user's shell theme (starship, custom
         # fish_prompt, etc.), not to the activation script. Tell virtualenv/venv
         # activation logic to leave prompt styling alone while we import env vars.
-        set -gx VIRTUAL_ENV_DISABLE_PROMPT 1
+        set -g VIRTUAL_ENV_DISABLE_PROMPT 1
         source "$activate_script"
         set -l activate_status $status
 
         if test "$had_virtual_env_disable_prompt" -eq 1
-            set -gx VIRTUAL_ENV_DISABLE_PROMPT "$old_virtual_env_disable_prompt"
+            set VIRTUAL_ENV_DISABLE_PROMPT "$old_virtual_env_disable_prompt"
         else
             set -e VIRTUAL_ENV_DISABLE_PROMPT
         end

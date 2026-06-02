@@ -161,7 +161,7 @@ Adapters track `_AUTO_UV_ENV_ACTIVATION_DIR` to avoid deactivating unrelated/man
 
 Adapters also use a small in-flight guard during activation (`_AUTO_UV_ENV_RUNNING`).
 
-Adapters should activate environments with prompt mutation disabled (`VIRTUAL_ENV_DISABLE_PROMPT=1`) so shell themes keep ownership of prompt rendering.
+Adapters should set `VIRTUAL_ENV_DISABLE_PROMPT=1` only while sourcing activation scripts, then restore the prior shell-variable state, so shell themes keep ownership of prompt rendering.
 
 Why this exists:
 

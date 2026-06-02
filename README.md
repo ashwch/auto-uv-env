@@ -180,7 +180,7 @@ hook starts
 This is why the adapters now:
 - use a small re-entry guard while activation is already in progress
 - call `uv venv /absolute/path/to/.venv` instead of relying on `cd`
-- activate with prompt mutation disabled (`VIRTUAL_ENV_DISABLE_PROMPT=1`)
+- set `VIRTUAL_ENV_DISABLE_PROMPT=1` only while sourcing the activation script, then restore the prior shell state
 - keep the main executable declarative and the shell adapter imperative
 
 ### Prompt ownership rule
@@ -201,8 +201,8 @@ source bin/activate
 
 Good
 ----
-export VIRTUAL_ENV_DISABLE_PROMPT=1
-source bin/activate
+set VIRTUAL_ENV_DISABLE_PROMPT=1 only while sourcing bin/activate
+then restore the previous shell variable state
   -> environment variables are imported
   -> prompt styling stays under the user's control
 ```
