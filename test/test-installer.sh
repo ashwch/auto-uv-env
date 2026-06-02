@@ -161,7 +161,10 @@ EOF
 }
 
 echo "Running installer regression tests..."
-run_test "Installer keeps extracted directory alive until install" test_installer_keeps_extracted_dir_alive_until_install
+
+# Keep running long enough to print the summary even if a test fails.
+# This mirrors the structure used in the other shell test runners in this repo.
+run_test "Installer keeps extracted directory alive until install" test_installer_keeps_extracted_dir_alive_until_install || true
 
 echo -e "\nInstaller Test Results:"
 echo -e "Passed: ${GREEN}$PASSED_TESTS${NC}"
