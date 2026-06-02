@@ -65,18 +65,21 @@ if command -v auto-uv-env >/dev/null 2>&1; then
         local activate_script="$1"
         local had_virtual_env_disable_prompt="${VIRTUAL_ENV_DISABLE_PROMPT+x}"
         local old_virtual_env_disable_prompt="${VIRTUAL_ENV_DISABLE_PROMPT-}"
+        local activate_status=0
 
         # Prompt rendering belongs to the user's shell theme (starship, custom
         # PROMPT/PS1, etc.), not to the activation script. Tell virtualenv/venv
         # activation logic to leave prompt styling alone while we import env vars.
         export VIRTUAL_ENV_DISABLE_PROMPT=1
-        source "$activate_script"
+        source "$activate_script" || activate_status=$?
 
         if [[ -n "$had_virtual_env_disable_prompt" ]]; then
             export VIRTUAL_ENV_DISABLE_PROMPT="$old_virtual_env_disable_prompt"
         else
             unset VIRTUAL_ENV_DISABLE_PROMPT
         fi
+
+        return "$activate_status"
     }
 
     # Function to check and activate UV environments.

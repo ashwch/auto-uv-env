@@ -201,7 +201,7 @@ source bin/activate
 
 Good
 ----
-set VIRTUAL_ENV_DISABLE_PROMPT=1
+export VIRTUAL_ENV_DISABLE_PROMPT=1
 source bin/activate
   -> environment variables are imported
   -> prompt styling stays under the user's control

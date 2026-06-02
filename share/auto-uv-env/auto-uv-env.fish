@@ -85,12 +85,15 @@ if command -v auto-uv-env >/dev/null 2>&1
         # activation logic to leave prompt styling alone while we import env vars.
         set -gx VIRTUAL_ENV_DISABLE_PROMPT 1
         source "$activate_script"
+        set -l activate_status $status
 
         if test "$had_virtual_env_disable_prompt" -eq 1
             set -gx VIRTUAL_ENV_DISABLE_PROMPT "$old_virtual_env_disable_prompt"
         else
             set -e VIRTUAL_ENV_DISABLE_PROMPT
         end
+
+        return $activate_status
     end
 
     # Inner implementation for auto_uv_env.
