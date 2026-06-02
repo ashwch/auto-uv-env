@@ -18,6 +18,12 @@
 #     -> tries to copy files from a path that no longer exists
 #
 # The regression test below keeps that mental model visible for future readers.
+#
+# Note on shells:
+# - This *test runner* uses bash, just like the other repo test scripts.
+# - But the installer under test is invoked with `sh`, because real users run:
+#     curl ... | sh
+# - That split is intentional: bash is the test harness, sh is the product surface.
 
 set -euo pipefail
 
@@ -67,6 +73,10 @@ run_test() {
 #   install_auto_uv_env  -> must still be able to copy from that source_dir
 #
 # If that contract breaks, this test should fail loudly.
+#
+# Quick way to run just this regression locally:
+#
+#   ./test/test-installer.sh
 test_installer_keeps_extracted_dir_alive_until_install() {
     local temp_dir mockbin home_dir fixture_dir log_file
     temp_dir=$(mktemp -d)

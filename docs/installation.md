@@ -62,6 +62,14 @@ clean up /tmp/... at the very end
 
 This matters because shell command substitution runs in a subshell. If cleanup is attached to the wrong shell lifetime, temporary files can disappear before installation finishes.
 
+If you want to validate that behavior locally, run the installer regression test:
+
+```bash
+./test/test-installer.sh
+```
+
+That test uses mocked downloads but the real installer control flow, so it protects the exact lifecycle contract described above.
+
 ### Option 2: Homebrew (macOS preferred) 🍺
 
 For macOS users with Homebrew:

@@ -279,6 +279,15 @@ EOF
     success "installed auto-uv-env"
 }
 
+# Clean up the caller-owned installer temp directory.
+#
+# Keep this as a tiny helper so the trap declarations read like a policy:
+#
+#   normal exit   -> cleanup_install_temp_dir
+#   INT / TERM    -> cleanup_install_temp_dir; exit 1
+#
+# The empty-string guard is intentional. It keeps trap execution boring even if
+# main exits before `install_temp_dir` is assigned.
 cleanup_install_temp_dir() {
     if [ -n "${install_temp_dir:-}" ]; then
         rm -rf "$install_temp_dir"
@@ -458,7 +467,17 @@ main() {
     need_cmd mkdir
     need_cmd cp
 
-    # Download and extract
+    # Download and extract.
+    #
+    # Visual model:
+    #
+    #   main
+    #     -> create temp dir
+    #     -> ask helper to fill it
+    #     -> install from extracted tree
+    #     -> cleanup on EXIT
+    #
+    # This keeps ownership simple: `main` owns the directory lifecycle.
     install_temp_dir="$(mktemp -d)"
     trap 'cleanup_install_temp_dir' EXIT
     trap 'cleanup_install_temp_dir; exit 1' INT TERM
