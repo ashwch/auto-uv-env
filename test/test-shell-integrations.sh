@@ -152,7 +152,9 @@ EOF
 
     local result
     result=$(perl -e 'alarm shift; exec @ARGV' 5 zsh -c "
+        cd /
         source '$INTEGRATION_DIR/auto-uv-env.zsh'
+        cd '$temp_dir'
         export AUTO_UV_ENV_QUIET=0
 
         uv() {
@@ -260,7 +262,9 @@ EOF
 
     local result
     result=$(perl -e 'alarm shift; exec @ARGV' 5 fish -c "
+        cd /
         source '$INTEGRATION_DIR/auto-uv-env.fish'
+        cd '$temp_dir'
         set -gx AUTO_UV_ENV_QUIET 0
 
         function uv
@@ -786,7 +790,9 @@ EOF
 
     local result
     result=$(perl -e 'alarm shift; exec @ARGV' 5 bash -c "
+        cd /
         source '$INTEGRATION_DIR/auto-uv-env.bash'
+        cd '$temp_dir'
         export AUTO_UV_ENV_QUIET=0
 
         uv() {
