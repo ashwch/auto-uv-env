@@ -70,6 +70,24 @@ if command -v auto-uv-env >/dev/null 2>&1
         end
     end
 
+    function _auto_uv_env_source_activate
+        set -l activate_script "$argv[1]"
+
+        # Prompt rendering belongs to the user's shell theme (starship, custom
+        # fish_prompt, etc.), not to the activation script. Tell virtualenv/venv
+        # activation logic to leave prompt styling alone while we import env vars.
+        #
+        # We use a local exported variable here on purpose:
+        # - nested commands sourced from this helper can still see it
+        # - once the helper returns, fish restores the caller's previous variable state
+        # - that avoids leaking a changed global value back into the user's shell
+        set -lx VIRTUAL_ENV_DISABLE_PROMPT 1
+        source "$activate_script"
+        set -l activate_status $status
+
+        return $activate_status
+    end
+
     # Inner implementation for auto_uv_env.
     #
     # This is separated from the public `auto_uv_env` wrapper so the wrapper can
@@ -133,7 +151,7 @@ if command -v auto-uv-env >/dev/null 2>&1
         # Single stat call is faster than separate -d and -f checks
         if test -f "$project_venv_path/bin/activate.fish" -a -z "$VIRTUAL_ENV"
             # Venv exists and we're not in any venv, just activate it
-            source "$project_venv_path/bin/activate.fish"
+            _auto_uv_env_source_activate "$project_venv_path/bin/activate.fish"
             set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$project_dir"
             # Use fish string manipulation instead of cut for performance
             # Handle case where python might not be available yet in UV environments
@@ -254,7 +272,7 @@ if command -v auto-uv-env >/dev/null 2>&1
 
                 # After creating a new environment, activate it
                 if test -f "$created_venv_path/bin/activate.fish"
-                    source "$created_venv_path/bin/activate.fish"
+                    _auto_uv_env_source_activate "$created_venv_path/bin/activate.fish"
                     set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$project_dir"
                     if set -l python_full_version (python --version 2>&1)
                         set -l python_version (string replace "Python " "" "$python_full_version")
@@ -274,7 +292,7 @@ if command -v auto-uv-env >/dev/null 2>&1
 
             # Handle activation
             if test -n "$activate_path" -a -f "$activate_path/bin/activate.fish"
-                source "$activate_path/bin/activate.fish"
+                _auto_uv_env_source_activate "$activate_path/bin/activate.fish"
                 # Track where we activated from
                 set -gx _AUTO_UV_ENV_ACTIVATION_DIR (_auto_uv_env_project_from_venv_path "$activate_path")
                 # Use fish string manipulation instead of cut for performance

@@ -180,6 +180,34 @@ python -m ipykernel install --user --name=myproject
 
 ## Troubleshooting
 
+### Prompt styling disappears after activation
+
+If entering a project activates the environment but breaks your prompt styling, the first-principles question is:
+
+```text
+Did the activation script take over prompt rendering?
+```
+
+Typical symptom:
+
+```text
+cd project
+  -> environment activates
+  -> starship / custom prompt styling disappears
+  -> sourcing ~/.zshrc restores it
+```
+
+`auto-uv-env` now sets `VIRTUAL_ENV_DISABLE_PROMPT=1` only while sourcing the
+activation script, then restores the prior shell-variable state.
+
+That means:
+
+```text
+auto-uv-env imports environment variables
+your shell theme keeps control of prompt rendering
+your prior shell state is restored after activation finishes
+```
+
 ### Repeated "Setting up Python ..." messages
 
 If you ever see the same setup line printed over and over, the important first-principles question is:

@@ -306,6 +306,396 @@ EOF
     [[ $(printf '%s' "$result" | grep -c 'Setting up Python 3.11 with UV' || true) -eq 1 ]]
 }
 
+# Test bash prompt styling survives activation and deactivation.
+test_bash_prompt_preserved_existing_venv() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
+    mkdir -p "$temp_dir/project/.venv/bin" "$temp_dir/outside"
+
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-bash-prompt"
+requires-python = ">=3.11"
+EOF
+
+    cat > "$temp_dir/project/.venv/bin/activate" << 'EOF'
+VIRTUAL_ENV="$PWD/.venv"
+export VIRTUAL_ENV
+if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ]; then
+    PS1="(broken) ${PS1:-}"
+    export PS1
+fi
+deactivate() { unset VIRTUAL_ENV; }
+EOF
+
+    local result
+    result=$(bash -c "
+        cd /
+        export PATH='$PROJECT_ROOT':\$PATH
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+        export AUTO_UV_ENV_QUIET=1
+        PS1='starship> '
+
+        cd '$temp_dir/project'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ \"\$PS1\" == 'starship> ' ]] || exit 1
+        [[ -z \"\${VIRTUAL_ENV_DISABLE_PROMPT+x}\" ]] || exit 1
+
+        cd '$temp_dir/outside'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ \"\$PS1\" == 'starship> ' ]] || exit 1
+        [[ -z \"\$VIRTUAL_ENV\" ]] || exit 1
+        echo 'BASH_PROMPT_PRESERVED_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"BASH_PROMPT_PRESERVED_SUCCESS"* ]]
+}
+
+# Test bash prompt styling survives create+activate and deactivation.
+test_bash_prompt_preserved_created_venv() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
+    mkdir -p "$temp_dir/project" "$temp_dir/outside"
+
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-bash-prompt-create"
+requires-python = ">=3.11"
+EOF
+
+    local result
+    result=$(bash -c "
+        cd /
+        export PATH='$PROJECT_ROOT':\$PATH
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+        export AUTO_UV_ENV_QUIET=1
+        PS1='starship> '
+
+        auto-uv-env() {
+            if [[ -f '$temp_dir/project/.venv/bin/activate' ]]; then
+                echo ACTIVATE=$temp_dir/project/.venv
+            else
+                echo 'CREATE_VENV=1'
+                echo 'PYTHON_VERSION=3.11'
+            fi
+        }
+
+        uv() {
+            case \"\$1\" in
+                python) return 0 ;;
+                venv)
+                    local target=\"\${!#}\"
+                    mkdir -p \"\$target/bin\"
+                    cat > \"\$target/bin/activate\" <<'ACTIVATE'
+VIRTUAL_ENV=\"\$PWD/.venv\"
+export VIRTUAL_ENV
+if [ -z "\$VIRTUAL_ENV_DISABLE_PROMPT" ]; then
+    PS1='broken> '
+    export PS1
+fi
+deactivate() { unset VIRTUAL_ENV; }
+ACTIVATE
+                    ;;
+            esac
+        }
+
+        python() { echo 'Python 3.11.0'; }
+
+        cd '$temp_dir/project'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ \"\$PS1\" == 'starship> ' ]] || exit 1
+        [[ -z \"\${VIRTUAL_ENV_DISABLE_PROMPT+x}\" ]] || exit 1
+
+        cd '$temp_dir/outside'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ \"\$PS1\" == 'starship> ' ]] || exit 1
+        [[ -z \"\$VIRTUAL_ENV\" ]] || exit 1
+        echo 'BASH_PROMPT_CREATE_PRESERVED_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"BASH_PROMPT_CREATE_PRESERVED_SUCCESS"* ]]
+}
+
+# Test zsh prompt styling survives create+activate and deactivation.
+test_zsh_prompt_preserved_created_venv() {
+    if ! command -v zsh >/dev/null 2>&1; then
+        echo "ZSH not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
+    mkdir -p "$temp_dir/project" "$temp_dir/outside"
+
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-zsh-prompt-create"
+requires-python = ">=3.11"
+EOF
+
+    local result
+    result=$(zsh -c "
+        cd /
+        export PATH='$PROJECT_ROOT':\$PATH
+        source '$INTEGRATION_DIR/auto-uv-env.zsh'
+        export AUTO_UV_ENV_QUIET=1
+        PS1='starship> '
+
+        auto-uv-env() {
+            if [[ -f '$temp_dir/project/.venv/bin/activate' ]]; then
+                echo ACTIVATE=$temp_dir/project/.venv
+            else
+                echo 'CREATE_VENV=1'
+                echo 'PYTHON_VERSION=3.11'
+            fi
+        }
+
+        uv() {
+            case \"\$1\" in
+                python) return 0 ;;
+                venv)
+                    local target=\"\${@: -1}\"
+                    [[ \"\$target\" == 'venv' ]] && target='.venv'
+                    mkdir -p \"\$target/bin\"
+                    cat > \"\$target/bin/activate\" <<'ACTIVATE'
+VIRTUAL_ENV="\$PWD/.venv"
+export VIRTUAL_ENV
+if [ -z "\$VIRTUAL_ENV_DISABLE_PROMPT" ]; then
+    PS1='broken> '
+    export PS1
+fi
+deactivate() { unset VIRTUAL_ENV; }
+ACTIVATE
+                    ;;
+            esac
+        }
+
+        python() { echo 'Python 3.11.0'; }
+
+        cd '$temp_dir/project'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ \"\$PS1\" == 'starship> ' ]] || exit 1
+        [[ -z \"\${VIRTUAL_ENV_DISABLE_PROMPT+x}\" ]] || exit 1
+
+        cd '$temp_dir/outside'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ \"\$PS1\" == 'starship> ' ]] || exit 1
+        [[ -z \"\$VIRTUAL_ENV\" ]] || exit 1
+        echo 'ZSH_PROMPT_CREATE_PRESERVED_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"ZSH_PROMPT_CREATE_PRESERVED_SUCCESS"* ]]
+}
+
+# Test zsh prompt styling survives activation and deactivation.
+test_zsh_prompt_preserved_existing_venv() {
+    if ! command -v zsh >/dev/null 2>&1; then
+        echo "ZSH not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
+    mkdir -p "$temp_dir/project/.venv/bin" "$temp_dir/outside"
+
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-zsh-prompt"
+requires-python = ">=3.11"
+EOF
+
+    cat > "$temp_dir/project/.venv/bin/activate" << 'EOF'
+VIRTUAL_ENV="$PWD/.venv"
+export VIRTUAL_ENV
+if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ]; then
+    PS1="(broken) ${PS1:-}"
+    export PS1
+fi
+deactivate() { unset VIRTUAL_ENV; }
+EOF
+
+    local result
+    result=$(zsh -c "
+        cd /
+        export PATH='$PROJECT_ROOT':\$PATH
+        source '$INTEGRATION_DIR/auto-uv-env.zsh'
+        export AUTO_UV_ENV_QUIET=1
+        PS1='starship> '
+
+        cd '$temp_dir/project'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ \"\$PS1\" == 'starship> ' ]] || exit 1
+        [[ -z \"\${VIRTUAL_ENV_DISABLE_PROMPT+x}\" ]] || exit 1
+
+        cd '$temp_dir/outside'
+        auto_uv_env >/dev/null 2>&1 || exit 1
+        [[ \"\$PS1\" == 'starship> ' ]] || exit 1
+        [[ -z \"\$VIRTUAL_ENV\" ]] || exit 1
+        echo 'ZSH_PROMPT_PRESERVED_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"ZSH_PROMPT_PRESERVED_SUCCESS"* ]]
+}
+
+# Test fish prompt styling survives create+activate and deactivation.
+test_fish_prompt_preserved_created_venv() {
+    if ! command -v fish >/dev/null 2>&1; then
+        echo "Fish not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
+    mkdir -p "$temp_dir/project" "$temp_dir/outside"
+
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-fish-prompt-create"
+requires-python = ">=3.11"
+EOF
+
+    local result
+    result=$(fish -c "
+        cd /
+        set -gx PATH '$PROJECT_ROOT' \$PATH
+        source '$INTEGRATION_DIR/auto-uv-env.fish'
+        set -gx AUTO_UV_ENV_QUIET 1
+        function fish_prompt
+            echo -n 'starship> '
+        end
+
+        function auto-uv-env
+            if test -f '$temp_dir/project/.venv/bin/activate.fish'
+                echo ACTIVATE=$temp_dir/project/.venv
+            else
+                echo 'CREATE_VENV=1'
+                echo 'PYTHON_VERSION=3.11'
+            end
+        end
+
+        function uv
+            switch \$argv[1]
+                case python
+                    return 0
+                case venv
+                    set -l target \$argv[-1]
+                    if test \"\$target\" = 'venv'
+                        set target '.venv'
+                    end
+                    mkdir -p \"\$target/bin\"
+                    printf '%s\n' 'set -gx VIRTUAL_ENV "'$temp_dir/project/.venv'"' > \"\$target/bin/activate.fish\"
+                    printf '%s\n' 'if test -z "\$VIRTUAL_ENV_DISABLE_PROMPT"' >> \"\$target/bin/activate.fish\"
+                    printf '%s\n' '    function fish_prompt' >> \"\$target/bin/activate.fish\"
+                    printf '%s\n' "        echo -n 'broken> '" >> \"\$target/bin/activate.fish\"
+                    printf '%s\n' '    end' >> \"\$target/bin/activate.fish\"
+                    printf '%s\n' 'end' >> \"\$target/bin/activate.fish\"
+                    printf '%s\n' 'function deactivate' >> \"\$target/bin/activate.fish\"
+                    printf '%s\n' '    set -e VIRTUAL_ENV' >> \"\$target/bin/activate.fish\"
+                    printf '%s\n' 'end' >> \"\$target/bin/activate.fish\"
+            end
+        end
+
+        function python
+            echo 'Python 3.11.0'
+        end
+
+        cd '$temp_dir/project'
+        auto_uv_env >/dev/null 2>&1
+        or exit 1
+        test \"(fish_prompt)\" = 'starship> '
+        or exit 1
+        if set -q VIRTUAL_ENV_DISABLE_PROMPT
+            exit 1
+        end
+
+        cd '$temp_dir/outside'
+        auto_uv_env >/dev/null 2>&1
+        or exit 1
+        test \"(fish_prompt)\" = 'starship> '
+        or exit 1
+        if set -q VIRTUAL_ENV
+            exit 1
+        end
+        echo 'FISH_PROMPT_CREATE_PRESERVED_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"FISH_PROMPT_CREATE_PRESERVED_SUCCESS"* ]]
+}
+
+# Test fish prompt styling survives activation and deactivation.
+test_fish_prompt_preserved_existing_venv() {
+    if ! command -v fish >/dev/null 2>&1; then
+        echo "Fish not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
+    mkdir -p "$temp_dir/project/.venv/bin" "$temp_dir/outside"
+
+    cat > "$temp_dir/project/pyproject.toml" << 'EOF'
+[project]
+name = "test-fish-prompt"
+requires-python = ">=3.11"
+EOF
+
+    cat > "$temp_dir/project/.venv/bin/activate.fish" << 'EOF'
+set -gx VIRTUAL_ENV "$PWD/.venv"
+if test -z "$VIRTUAL_ENV_DISABLE_PROMPT"
+    function fish_prompt
+        echo -n '(broken) '
+    end
+end
+function deactivate
+    set -e VIRTUAL_ENV
+end
+EOF
+
+    local result
+    result=$(fish -c "
+        cd /
+        set -gx PATH '$PROJECT_ROOT' \$PATH
+        source '$INTEGRATION_DIR/auto-uv-env.fish'
+        set -gx AUTO_UV_ENV_QUIET 1
+        function fish_prompt
+            echo -n 'starship> '
+        end
+
+        cd '$temp_dir/project'
+        auto_uv_env >/dev/null 2>&1
+        or exit 1
+        test \"(fish_prompt)\" = 'starship> '
+        or exit 1
+        if set -q VIRTUAL_ENV_DISABLE_PROMPT
+            exit 1
+        end
+
+        cd '$temp_dir/outside'
+        auto_uv_env >/dev/null 2>&1
+        or exit 1
+        test \"(fish_prompt)\" = 'starship> '
+        or exit 1
+        if set -q VIRTUAL_ENV
+            exit 1
+        end
+        echo 'FISH_PROMPT_PRESERVED_SUCCESS'
+    " 2>&1)
+
+    rm -rf "$temp_dir"
+    [[ "$result" == *"FISH_PROMPT_PRESERVED_SUCCESS"* ]]
+}
+
 # Test lazy-loading fast path in non-Python directories
 test_non_python_fast_path() {
     local temp_dir
@@ -907,6 +1297,12 @@ run_test "ZSH recursive hook re-entry guard" test_zsh_recursive_reentry_guard
 run_test "Fish integration syntax" test_fish_syntax
 run_test "Fish state-file cleanup on failure" test_fish_state_file_cleanup_on_failure
 run_test "Fish recursive hook re-entry guard" test_fish_recursive_reentry_guard
+run_test "Bash prompt preserved (existing venv)" test_bash_prompt_preserved_existing_venv
+run_test "Bash prompt preserved (created venv)" test_bash_prompt_preserved_created_venv
+run_test "ZSH prompt preserved (created venv)" test_zsh_prompt_preserved_created_venv
+run_test "ZSH prompt preserved (existing venv)" test_zsh_prompt_preserved_existing_venv
+run_test "Fish prompt preserved (created venv)" test_fish_prompt_preserved_created_venv
+run_test "Fish prompt preserved (existing venv)" test_fish_prompt_preserved_existing_venv
 run_test "Non-Python fast path (lazy loading)" test_non_python_fast_path
 run_test "Subdirectory project activation" test_subdirectory_project_activation
 run_test "Subdirectory creation uses explicit project-root path" test_subdirectory_creation_uses_explicit_project_root_path

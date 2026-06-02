@@ -180,7 +180,32 @@ hook starts
 This is why the adapters now:
 - use a small re-entry guard while activation is already in progress
 - call `uv venv /absolute/path/to/.venv` instead of relying on `cd`
+- set `VIRTUAL_ENV_DISABLE_PROMPT=1` only while sourcing the activation script, then restore the prior shell state
 - keep the main executable declarative and the shell adapter imperative
+
+### Prompt ownership rule
+
+```text
+auto-uv-env owns environment activation
+your shell theme owns prompt rendering
+```
+
+Why this matters:
+
+```text
+Bad
+---
+source bin/activate
+  -> activation script rewrites PS1 / prompt function
+  -> starship or custom shell prompt loses styling
+
+Good
+----
+temporarily set VIRTUAL_ENV_DISABLE_PROMPT=1 while sourcing bin/activate
+then restore the previous shell variable state
+  -> environment variables are imported
+  -> prompt styling stays under the user's control
+```
 
 ## Performance
 
