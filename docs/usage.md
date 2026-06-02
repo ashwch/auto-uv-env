@@ -180,6 +180,49 @@ python -m ipykernel install --user --name=myproject
 
 ## Troubleshooting
 
+### Repeated "Setting up Python ..." messages
+
+If you ever see the same setup line printed over and over, the important first-principles question is:
+
+```text
+Did the shell hook start a second activation before the first one finished?
+```
+
+That can happen when shell state changes during activation and another shell hook/plugin reacts to it.
+
+auto-uv-env now defends against that in two ways:
+
+```text
+1. only one activation run is allowed at a time
+2. venv creation targets an explicit path like /project/.venv
+   instead of relying on `cd project && uv venv`
+```
+
+If you want to inspect the project manually:
+
+```bash
+# What project would be used?
+auto-uv-env --check-safe "$PWD"
+
+# If you are in a nested directory, first go to the project root.
+# (auto-uv-env discovers this by walking upward to the nearest pyproject.toml.)
+project_root="$(python3 - <<'PY'
+from pathlib import Path
+p = Path.cwd().resolve()
+for cur in (p, *p.parents):
+    if (cur / 'pyproject.toml').exists():
+        print(cur)
+        break
+PY
+)"
+
+# What venv path should exist?
+ls -la "$project_root/.venv"
+
+# Can uv create the environment directly at the project root?
+uv venv "$project_root/.venv"
+```
+
 ### Environment Not Activating
 
 1. **Check for pyproject.toml**:

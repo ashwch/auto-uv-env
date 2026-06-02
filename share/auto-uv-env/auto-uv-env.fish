@@ -70,8 +70,11 @@ if command -v auto-uv-env >/dev/null 2>&1
         end
     end
 
-    # Function to check and activate UV environments
-    function auto_uv_env
+    # Inner implementation for auto_uv_env.
+    #
+    # This is separated from the public `auto_uv_env` wrapper so the wrapper can
+    # install and clear a global in-flight guard around the entire run.
+    function _auto_uv_env_run_impl
         # If we're in a managed venv, first verify that it still exists.
         if test -n "$VIRTUAL_ENV"; and test -n "$_AUTO_UV_ENV_ACTIVATION_DIR"; and _auto_uv_env_is_within_dir "$PWD" "$_AUTO_UV_ENV_ACTIVATION_DIR"
             if not test -d "$VIRTUAL_ENV"
@@ -213,7 +216,19 @@ if command -v auto-uv-env >/dev/null 2>&1
                     echo -e "\033[0;34m$msg_setup\033[0m"
                 end
 
-                set -l old_pwd $PWD
+                set -l venv_dir (test -n "$AUTO_UV_ENV_VENV_NAME"; and echo $AUTO_UV_ENV_VENV_NAME; or echo ".venv")
+                set -l created_venv_path "$project_dir/$venv_dir"
+
+                # Create the venv at an explicit path.
+                #
+                # Why this matters:
+                # - Older code changed into the project directory and then ran `uv venv`.
+                # - That worked, but it mixed "where the shell is standing" with
+                #   "which project owns the venv".
+                # - In hook-driven code, changing directories can trigger more shell work.
+                #
+                # Using an explicit path keeps the operation declarative:
+                #   project root -> desired venv path -> create exactly there
                 if test -n "$python_version"
                     # Try specific Python version first
                     if not uv python install "$python_version" 2>/dev/null
@@ -221,31 +236,23 @@ if command -v auto-uv-env >/dev/null 2>&1
                             echo -e "\033[0;34m🐍\033[0m Python $python_version not available, using default"
                         end
                     end
-                    cd "$project_dir"
-                    if not uv venv --python "$python_version" 2>/dev/null
-                        if not uv venv 2>/dev/null
-                            cd "$old_pwd"
+                    if not uv venv --python "$python_version" "$created_venv_path" 2>/dev/null
+                        if not uv venv "$created_venv_path" 2>/dev/null
                             echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
                             return 1
                         end
                     end
-                    cd "$old_pwd"
                 else
-                    cd "$project_dir"
-                    if not uv venv 2>/dev/null
-                        cd "$old_pwd"
+                    if not uv venv "$created_venv_path" 2>/dev/null
                         echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
                         return 1
                     end
-                    cd "$old_pwd"
                 end
                 if test "$AUTO_UV_ENV_QUIET" != "1"
                     echo -e "\033[0;32m✅\033[0m Virtual environment created"
                 end
 
                 # After creating a new environment, activate it
-                set -l venv_dir (test -n "$AUTO_UV_ENV_VENV_NAME"; and echo $AUTO_UV_ENV_VENV_NAME; or echo ".venv")
-                set -l created_venv_path "$project_dir/$venv_dir"
                 if test -f "$created_venv_path/bin/activate.fish"
                     source "$created_venv_path/bin/activate.fish"
                     set -gx _AUTO_UV_ENV_ACTIVATION_DIR "$project_dir"
@@ -309,6 +316,34 @@ if command -v auto-uv-env >/dev/null 2>&1
                 end
             end
         end
+    end
+
+    # Function to check and activate UV environments.
+    #
+    # First principles:
+    # - The shell hook may fire more than once while one activation is still in progress.
+    # - `source bin/activate.fish` changes shell state, and some shells/plugins may react to that.
+    # - If we start a second auto_uv_env run before the first one finishes, we can repeat
+    #   setup work and print the setup message over and over.
+    #
+    # So this function follows two simple rules:
+    # 1. Only one auto_uv_env run may be active at a time.
+    # 2. Venv creation must target an explicit path, instead of relying on `cd` side effects.
+    function auto_uv_env
+        # Guard against recursive re-entry (for example, if a sourced activation
+        # script or nested shell callback triggers the hook again mid-run).
+        #
+        # In fish, nested function invocations do not see caller-local variables,
+        # so this guard must be global for recursive calls to observe it.
+        if test -n "$_AUTO_UV_ENV_RUNNING"
+            return 0
+        end
+
+        set -g _AUTO_UV_ENV_RUNNING 1
+        _auto_uv_env_run_impl
+        set -l auto_uv_env_status $status
+        set -e _AUTO_UV_ENV_RUNNING
+        return $auto_uv_env_status
     end
 
     # Hook into directory changes
