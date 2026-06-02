@@ -104,6 +104,7 @@ auto-uv-env/
 |   +-- test-shell-integrations.sh     # Adapter-level tests
 |   +-- test-security.sh               # Security-focused tests
 |   +-- test-deleted-venv.sh           # Deleted venv behavior regression test
+|   +-- test-installer.sh              # Installer temp-dir lifecycle regression test
 |
 +-- scripts/
 |   +-- release.sh                     # Release orchestration
@@ -192,6 +193,19 @@ Risky: cd project root -> run uv venv -> rely on shell location side effects
 - Venv directory name is validated and path traversal is blocked.
 - Shell state mutation stays in shell adapters, not in the main script.
 - `--check` is deprecated; use `--check-safe`.
+- Installer temp-directory cleanup must happen only after installed files are copied into their final location.
+
+Why this installer rule exists:
+
+```text
+download + extract release -> return extracted path -> copy files -> cleanup temp dir
+```
+
+Not:
+
+```text
+download + extract release -> cleanup temp dir -> try to copy from deleted path
+```
 
 ### Release Contract
 
@@ -261,6 +275,7 @@ Configured in `.pre-commit-config.yaml`:
 ./test/test-security.sh
 ./test/test-shell-integrations.sh
 ./test/test-deleted-venv.sh
+./test/test-installer.sh
 
 # Safer test execution when current shell has active venv state
 env -u VIRTUAL_ENV -u _AUTO_UV_ENV_ACTIVATION_DIR -u AUTO_UV_ENV_PYTHON_VERSION ./test/test.sh
