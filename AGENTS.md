@@ -158,12 +158,34 @@ Shell adapters must remain compatible with this exact format.
 
 Adapters track `_AUTO_UV_ENV_ACTIVATION_DIR` to avoid deactivating unrelated/manual environments and to know when users leave a project tree.
 
+Adapters also use a small in-flight guard during activation (`_AUTO_UV_ENV_RUNNING`).
+
+Why this exists:
+
+```text
+shell hook starts
+  -> create/activate venv
+    -> shell state changes
+      -> another hook/plugin may react
+        -> second auto_uv_env run starts too early
+```
+
+The guard keeps activation single-flight: one adapter run may be active at a time.
+
 ### Project Discovery Contract
 
 - Project detection walks upward from `$PWD` to find the nearest `pyproject.toml`.
 - If `.auto-uv-env-ignore` is encountered before any `pyproject.toml`, activation is skipped for that subtree.
 - Entering an ignored subtree deactivates any currently auto-uv-env-managed environment.
 - Venv creation and activation target the discovered project root, not necessarily the current directory.
+- Shell adapters should prefer explicit venv paths (`uv venv /abs/project/.venv`) over `cd`-based creation.
+
+Why this matters:
+
+```text
+Good:  project root -> explicit .venv path -> uv creates exactly there
+Risky: cd project root -> run uv venv -> rely on shell location side effects
+```
 
 ### Safety Contract
 

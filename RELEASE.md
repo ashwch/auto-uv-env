@@ -67,6 +67,21 @@ gh api 'repos/ashwch/homebrew-tap/contents/Formula/auto-uv-env.rb?ref=main' \
   --jq '.content' | python3 -c 'import sys,base64;print(base64.b64decode(sys.stdin.read()).decode())'
 ```
 
+Verify that the formula `url` tag and `sha256` are for the same release:
+
+```bash
+VERSION=1.1.3
+formula_content="$(gh api 'repos/ashwch/homebrew-tap/contents/Formula/auto-uv-env.rb?ref=main' --jq '.content' | python3 -c 'import sys,base64;print(base64.b64decode(sys.stdin.read()).decode())')"
+formula_url="$(printf '%s\n' "$formula_content" | awk -F'"' '/^  url /{print $2}')"
+formula_sha="$(printf '%s\n' "$formula_content" | awk -F'"' '/^  sha256 /{print $2}')"
+expected_url="https://github.com/ashwch/auto-uv-env/archive/refs/tags/v${VERSION}.tar.gz"
+expected_sha="$(curl -Ls "$expected_url" | shasum -a 256 | awk '{print $1}')"
+
+test "$formula_url" = "$expected_url"
+test "$formula_sha" = "$expected_sha"
+echo "Homebrew formula URL/SHA verified for v${VERSION}"
+```
+
 ## Release Notes Normalization
 
 If an automated release body/title does not match the standard format:
@@ -102,7 +117,7 @@ If that workflow fails, check whether `gh release view vX.Y.Z` already exists.
 
 3. If Homebrew update fails in the script, complete it manually.
 Calculate SHA256 from the release tarball.
-Update `Formula/auto-uv-env.rb` in `ashwch/homebrew-tap`.
+Update `Formula/auto-uv-env.rb` in `ashwch/homebrew-tap` (both `url` and `sha256`).
 Commit and push the formula update.
 
 4. GitHub Pages deploy is asynchronous and main-branch-driven.

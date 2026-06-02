@@ -229,7 +229,11 @@ EOF
         uv() {
             case \"\$1\" in
                 'python') return 0 ;;
-                'venv') mkdir -p .venv/bin && touch .venv/bin/activate ;;
+                'venv')
+                    local target="\${!#}"
+                    [[ "\$target" == 'venv' ]] && target='.venv'
+                    mkdir -p "\$target/bin" && touch "\$target/bin/activate"
+                    ;;
             esac
             return 0
         }
@@ -249,6 +253,74 @@ EOF
     cd - > /dev/null
     rm -rf "$temp_dir"
     [[ "$result" == *"SUBDIR_ACTIVATION_SUCCESS"* ]]
+}
+
+# Test that venv creation uses an explicit project-root path.
+#
+# Why this exists:
+# - The old implementation changed directory into the project root and then ran `uv venv`.
+# - That can work, but it hides an important contract: the venv belongs to the discovered
+#   project root, not the current working directory and not whatever directory a hook may
+#   have temporarily changed into.
+#
+# What we prove:
+# 1. `uv venv` is called with an explicit `<project-root>/.venv` path.
+# 2. No `.venv` appears in the nested subdirectory.
+# 3. Activation still targets the project root.
+test_subdirectory_creation_uses_explicit_project_root_path() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/project/subdir"
+    cd "$temp_dir/project/subdir"
+
+    cat > ../pyproject.toml << 'EOF'
+[project]
+name = "test-project"
+requires-python = ">=3.11"
+EOF
+
+    local result
+    result=$(bash -c "
+        cd '$temp_dir/project/subdir'
+        unset VIRTUAL_ENV
+        unset _AUTO_UV_ENV_ACTIVATION_DIR
+        unset AUTO_UV_ENV_PYTHON_VERSION
+        export AUTO_UV_ENV_QUIET=1
+
+        auto-uv-env() {
+            echo 'CREATE_VENV=1'
+            echo 'PYTHON_VERSION=3.11'
+        }
+
+        uv() {
+            case \"\$1\" in
+                'python') return 0 ;;
+                'venv')
+                    printf '%s\n' \"\$*\" > '$temp_dir/uv-args.txt'
+                    local target=\"\${!#}\"
+                    [[ \"\$target\" == 'venv' ]] && target='.venv'
+                    mkdir -p \"\$target/bin\" && touch \"\$target/bin/activate\"
+                    ;;
+            esac
+            return 0
+        }
+
+        python() { echo 'Python 3.11.0'; }
+
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+
+        auto_uv_env >/dev/null 2>&1 || exit 1
+
+        [[ -f '$temp_dir/project/.venv/bin/activate' ]] || exit 1
+        [[ ! -e '$temp_dir/project/subdir/.venv' ]] || exit 1
+        grep -F -- 'venv --python 3.11 $temp_dir/project/.venv' '$temp_dir/uv-args.txt' >/dev/null || exit 1
+        [[ \"\$_AUTO_UV_ENV_ACTIVATION_DIR\" == '$temp_dir/project' ]] || exit 1
+        echo 'EXPLICIT_PROJECT_VENV_PATH_SUCCESS'
+    " 2>&1)
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+    [[ "$result" == *"EXPLICIT_PROJECT_VENV_PATH_SUCCESS"* ]]
 }
 
 # Test that ignore markers deactivate an already managed environment in that subtree
@@ -446,7 +518,11 @@ EOF
         # Mock UV to avoid actual creation
         uv() {
             case \"\$1\" in
-                'venv') mkdir -p .venv/bin && touch .venv/bin/activate ;;
+                'venv')
+                    local target="\${!#}"
+                    [[ "\$target" == 'venv' ]] && target='.venv'
+                    mkdir -p "\$target/bin" && touch "\$target/bin/activate"
+                    ;;
                 *) echo 'Mock UV: \$*' ;;
             esac
             return 0
@@ -554,6 +630,74 @@ test_state_file_cleanup() {
     rm -rf "$temp_dir"
 }
 
+# Test recursive hook re-entry is ignored.
+#
+# Why this exists:
+# - The original bug looked like an endless stream of:
+#     🐍 Setting up Python ...
+# - That symptom means the shell hook re-entered while setup was still running.
+# - This test simulates that by making our mocked `uv venv` call `auto_uv_env`
+#   again before the first invocation finishes.
+#
+# What we prove:
+# 1. The first run still creates the environment.
+# 2. The nested run is ignored.
+# 3. The setup message appears exactly once.
+test_recursive_reentry_guard() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    cd "$temp_dir"
+
+    cat > pyproject.toml << 'EOF'
+[project]
+name = "test-reentry"
+version = "1.0.0"
+requires-python = ">=3.11"
+EOF
+
+    local result
+    result=$(perl -e 'alarm shift; exec @ARGV' 5 bash -c "
+        source '$INTEGRATION_DIR/auto-uv-env.bash'
+        export AUTO_UV_ENV_QUIET=0
+
+        uv() {
+            case \"\$1\" in
+                python) return 0 ;;
+                venv)
+                    local target="\${!#}"
+                    [[ "\$target" == 'venv' ]] && target='.venv'
+                    auto_uv_env >/dev/null 2>&1
+                    mkdir -p "\$target/bin"
+                    cat > "\$target/bin/activate" <<'ACTIVATE'
+VIRTUAL_ENV=\"$PWD/.venv\"
+export VIRTUAL_ENV
+ACTIVATE
+                    ;;
+            esac
+        }
+
+        python() { echo 'Python 3.11.0'; }
+
+        auto-uv-env() {
+            if [[ -f '.venv/bin/activate' ]]; then
+                echo \"ACTIVATE=\$PWD/.venv\"
+            else
+                echo 'CREATE_VENV=1'
+                echo 'PYTHON_VERSION=3.11'
+                echo 'MSG_SETUP=🐍 Setting up Python 3.11 with UV...'
+            fi
+        }
+
+        auto_uv_env 2>&1
+    " 2>&1)
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+
+    [[ "$result" == *"Virtual environment created"* ]] || return 1
+    [[ $(printf '%s' "$result" | grep -c 'Setting up Python 3.11 with UV' || true) -eq 1 ]]
+}
+
 # Test deleted virtual environment handling
 test_deleted_venv_handling() {
     local temp_dir
@@ -578,7 +722,11 @@ EOF
         # Mock functions
         uv() {
             case \"\$1\" in
-                'venv') mkdir -p .venv/bin && touch .venv/bin/activate ;;
+                'venv')
+                    local target="\${!#}"
+                    [[ "\$target" == 'venv' ]] && target='.venv'
+                    mkdir -p "\$target/bin" && touch "\$target/bin/activate"
+                    ;;
                 *) return 0 ;;
             esac
         }
@@ -587,10 +735,10 @@ EOF
         # Mock auto-uv-env to simulate first activation
         auto-uv-env() {
             if [[ -d '.venv' ]]; then
-                echo 'ACTIVATE=$PWD/.venv'
+                echo "ACTIVATE=$PWD/.venv"
             else
                 echo 'CREATE_VENV=1'
-                echo 'ACTIVATE=$PWD/.venv'
+                echo "ACTIVATE=$PWD/.venv"
             fi
         }
 
@@ -626,6 +774,7 @@ run_test "Fish integration syntax" test_fish_syntax
 run_test "Fish state-file cleanup on failure" test_fish_state_file_cleanup_on_failure
 run_test "Non-Python fast path (lazy loading)" test_non_python_fast_path
 run_test "Subdirectory project activation" test_subdirectory_project_activation
+run_test "Subdirectory creation uses explicit project-root path" test_subdirectory_creation_uses_explicit_project_root_path
 run_test "Ignore subtree deactivates active env" test_ignore_subtree_deactivates_active_env
 run_test "Prefix-collision paths deactivate active env" test_prefix_collision_deactivates_outside_tree
 run_test "Bash state file parsing" test_bash_state_parsing
@@ -634,6 +783,7 @@ run_test "Integration end-to-end" test_integration_end_to_end
 run_test "Integration error handling" test_integration_error_handling
 run_test "Deactivation logic" test_deactivation_logic
 run_test "State file cleanup" test_state_file_cleanup
+run_test "Recursive hook re-entry guard" test_recursive_reentry_guard
 run_test "Deleted virtual environment handling" test_deleted_venv_handling
 
 # Summary

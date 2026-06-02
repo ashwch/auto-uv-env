@@ -136,6 +136,52 @@ MSG_SETUP=🐍 Setting up Python 3.11 with UV...
 ACTIVATE=/path/to/project/.venv
 ```
 
+## Why the shell adapters are careful
+
+The shell adapters (`bash`, `zsh`, `fish`) run inside your live shell session, so they have to be boring and predictable.
+
+### Two rules they follow
+
+```text
+Rule 1: never let one activation run recursively trigger another
+Rule 2: always create the venv at an explicit project-root path
+```
+
+Why:
+
+```text
+Without Rule 1
+--------------
+hook starts
+  -> creates venv
+    -> activation changes shell state
+      -> shell/plugin fires hook again
+        -> setup repeats
+          -> "Setting up Python ..." forever
+
+Without Rule 2
+--------------
+hook starts
+  -> cd into project root
+    -> run uv venv
+      -> shell state now depends on directory-changing side effects
+```
+
+With both rules:
+
+```text
+hook starts
+  -> compute project root
+  -> create /absolute/project/.venv directly
+  -> activate once
+  -> finish
+```
+
+This is why the adapters now:
+- use a small re-entry guard while activation is already in progress
+- call `uv venv /absolute/path/to/.venv` instead of relying on `cd`
+- keep the main executable declarative and the shell adapter imperative
+
 ## Performance
 
 - v1.0.7 delivered roughly 93% startup overhead improvement versus earlier behavior.

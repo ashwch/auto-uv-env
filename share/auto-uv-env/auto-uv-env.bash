@@ -60,8 +60,25 @@ if command -v auto-uv-env >/dev/null 2>&1; then
         esac
     }
 
-    # Function to check and activate UV environments
+    # Function to check and activate UV environments.
+    #
+    # First principles:
+    # - The shell hook may fire more than once while one activation is still in progress.
+    # - `source bin/activate` changes shell state, and some shells/plugins may react to that.
+    # - If we start a second auto_uv_env run before the first one finishes, we can repeat
+    #   setup work and print the setup message over and over.
+    #
+    # So this function follows two simple rules:
+    # 1. Only one auto_uv_env run may be active at a time.
+    # 2. Venv creation must target an explicit path, instead of relying on `cd` side effects.
     auto_uv_env() {
+        # Guard against recursive re-entry (for example, if a sourced activation
+        # script or nested shell callback triggers the hook again mid-run).
+        if [[ "${_AUTO_UV_ENV_RUNNING:-0}" == "1" ]]; then
+            return 0
+        fi
+        local _AUTO_UV_ENV_RUNNING=1
+
         # If we're in a managed venv, first verify that it still exists.
         if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -n "${_AUTO_UV_ENV_ACTIVATION_DIR:-}" ]] && _auto_uv_env_is_within_dir "$PWD" "${_AUTO_UV_ENV_ACTIVATION_DIR}"; then
             if [[ ! -d "${VIRTUAL_ENV:-}" ]]; then
@@ -183,19 +200,32 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             if [[ -n "$create_venv" ]]; then
                 [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && [[ -n "$msg_setup" ]] && echo -e "\033[0;34m$msg_setup\033[0m"
 
+                local venv_dir="${AUTO_UV_ENV_VENV_NAME:-.venv}"
+                local created_venv_path="$project_dir/$venv_dir"
+
+                # Create the venv at an explicit path.
+                #
+                # Why this matters:
+                # - Older code changed into the project directory and then ran `uv venv`.
+                # - That worked, but it mixed "where the shell is standing" with
+                #   "which project owns the venv".
+                # - In hook-driven code, changing directories can trigger more shell work.
+                #
+                # Using an explicit path keeps the operation declarative:
+                #   project root -> desired venv path -> create exactly there
                 if [[ -n "$python_version" ]]; then
                     # Try specific Python version first
                     if ! uv python install "$python_version" 2>/dev/null; then
                         [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;34m🐍\033[0m Python $python_version not available, using default"
                     fi
-                    if ! (cd "$project_dir" && uv venv --python "$python_version" 2>/dev/null); then
-                        if ! (cd "$project_dir" && uv venv 2>/dev/null); then
+                    if ! uv venv --python "$python_version" "$created_venv_path" 2>/dev/null; then
+                        if ! uv venv "$created_venv_path" 2>/dev/null; then
                             echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
                             return 1
                         fi
                     fi
                 else
-                    if ! (cd "$project_dir" && uv venv 2>/dev/null); then
+                    if ! uv venv "$created_venv_path" 2>/dev/null; then
                         echo -e "\033[0;31m❌\033[0m Failed to create virtual environment" >&2
                         return 1
                     fi
@@ -203,8 +233,6 @@ if command -v auto-uv-env >/dev/null 2>&1; then
                 [[ "${AUTO_UV_ENV_QUIET:-0}" != "1" ]] && echo -e "\033[0;32m✅\033[0m Virtual environment created"
 
                 # After creating a new environment, activate it
-                local venv_dir="${AUTO_UV_ENV_VENV_NAME:-.venv}"
-                local created_venv_path="$project_dir/$venv_dir"
                 if [[ -f "$created_venv_path/bin/activate" ]]; then
                     source "$created_venv_path/bin/activate"
                     export _AUTO_UV_ENV_ACTIVATION_DIR="$project_dir"
