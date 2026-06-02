@@ -70,25 +70,11 @@ if command -v auto-uv-env >/dev/null 2>&1
         end
     end
 
-    # Function to check and activate UV environments.
+    # Inner implementation for auto_uv_env.
     #
-    # First principles:
-    # - The shell hook may fire more than once while one activation is still in progress.
-    # - `source bin/activate.fish` changes shell state, and some shells/plugins may react to that.
-    # - If we start a second auto_uv_env run before the first one finishes, we can repeat
-    #   setup work and print the setup message over and over.
-    #
-    # So this function follows two simple rules:
-    # 1. Only one auto_uv_env run may be active at a time.
-    # 2. Venv creation must target an explicit path, instead of relying on `cd` side effects.
-    function auto_uv_env
-        # Guard against recursive re-entry (for example, if a sourced activation
-        # script or nested shell callback triggers the hook again mid-run).
-        if test -n "$_AUTO_UV_ENV_RUNNING"
-            return 0
-        end
-        set -l _AUTO_UV_ENV_RUNNING 1
-
+    # This is separated from the public `auto_uv_env` wrapper so the wrapper can
+    # install and clear a global in-flight guard around the entire run.
+    function _auto_uv_env_run_impl
         # If we're in a managed venv, first verify that it still exists.
         if test -n "$VIRTUAL_ENV"; and test -n "$_AUTO_UV_ENV_ACTIVATION_DIR"; and _auto_uv_env_is_within_dir "$PWD" "$_AUTO_UV_ENV_ACTIVATION_DIR"
             if not test -d "$VIRTUAL_ENV"
@@ -330,6 +316,34 @@ if command -v auto-uv-env >/dev/null 2>&1
                 end
             end
         end
+    end
+
+    # Function to check and activate UV environments.
+    #
+    # First principles:
+    # - The shell hook may fire more than once while one activation is still in progress.
+    # - `source bin/activate.fish` changes shell state, and some shells/plugins may react to that.
+    # - If we start a second auto_uv_env run before the first one finishes, we can repeat
+    #   setup work and print the setup message over and over.
+    #
+    # So this function follows two simple rules:
+    # 1. Only one auto_uv_env run may be active at a time.
+    # 2. Venv creation must target an explicit path, instead of relying on `cd` side effects.
+    function auto_uv_env
+        # Guard against recursive re-entry (for example, if a sourced activation
+        # script or nested shell callback triggers the hook again mid-run).
+        #
+        # In fish, nested function invocations do not see caller-local variables,
+        # so this guard must be global for recursive calls to observe it.
+        if test -n "$_AUTO_UV_ENV_RUNNING"
+            return 0
+        end
+
+        set -g _AUTO_UV_ENV_RUNNING 1
+        _auto_uv_env_run_impl
+        set -l auto_uv_env_status $status
+        set -e _AUTO_UV_ENV_RUNNING
+        return $auto_uv_env_status
     end
 
     # Hook into directory changes

@@ -278,9 +278,7 @@ EOF
                     end
                     auto_uv_env >/dev/null 2>&1
                     mkdir -p \"\$target/bin\"
-                    cat > \"\$target/bin/activate.fish\" <<'ACTIVATE'
-set -gx VIRTUAL_ENV \"$PWD/.venv\"
-ACTIVATE
+                    printf '%s\\n' 'set -gx VIRTUAL_ENV \"$PWD/.venv\"' > \"\$target/bin/activate.fish\"
             end
         end
 
