@@ -15,10 +15,35 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create Release Archive
+        shell: bash
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          tar czf auto-uv-env-${VERSION}.tar.gz --exclude='.git*' --exclude='.github' .
-          sha256sum auto-uv-env-${VERSION}.tar.gz > auto-uv-env-${VERSION}.tar.gz.sha256
+          SAFE_VERSION=${VERSION//\//-}
+          STAGE_DIR="$RUNNER_TEMP/auto-uv-env-${SAFE_VERSION}"
+          ARCHIVE_NAME="auto-uv-env-${SAFE_VERSION}.tar.gz"
+
+          # Build the release tarball from a separate staging directory.
+          #
+          # Why:
+          # - Creating the archive in the repository root means `tar` can see the
+          #   output file appear while it is still reading `.`.
+          # - GNU tar then fails with: `tar: .: file changed as we read it`.
+          #
+          # Staging keeps the input tree and output archive physically separate:
+          #   checkout -> copy tracked payload into RUNNER_TEMP -> create archive in checkout
+          #
+          # That is safe because `tar` reads from RUNNER_TEMP while writing the archive
+          # in the repository workspace, so the output file is no longer inside the
+          # tree being archived.
+          rm -rf "$STAGE_DIR"
+          mkdir -p "$STAGE_DIR/share/auto-uv-env"
+
+          cp auto-uv-env "$STAGE_DIR/auto-uv-env"
+          cp README.md LICENSE CHANGELOG.md pyproject.toml "$STAGE_DIR/"
+          cp -R share/auto-uv-env/. "$STAGE_DIR/share/auto-uv-env/"
+
+          tar -C "$RUNNER_TEMP" -czf "$ARCHIVE_NAME" "auto-uv-env-${SAFE_VERSION}"
+          sha256sum "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
