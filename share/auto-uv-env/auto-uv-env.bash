@@ -69,6 +69,7 @@ if command -v auto-uv-env >/dev/null 2>&1; then
         # etc.), not to the activation script. Tell virtualenv/venv activation logic
         # to leave PS1 alone while we still import the environment variables.
         export VIRTUAL_ENV_DISABLE_PROMPT=1
+        # shellcheck disable=SC1090
         source "$activate_script"
 
         if [[ -n "$had_virtual_env_disable_prompt" ]]; then
