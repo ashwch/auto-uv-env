@@ -72,11 +72,6 @@ if command -v auto-uv-env >/dev/null 2>&1
 
     function _auto_uv_env_source_activate
         set -l activate_script "$argv[1]"
-        set -l prior_virtual_env_disable_prompt ""
-
-        if set -q VIRTUAL_ENV_DISABLE_PROMPT
-            set prior_virtual_env_disable_prompt "$VIRTUAL_ENV_DISABLE_PROMPT"
-        end
 
         # Prompt rendering belongs to the user's shell theme (starship, custom
         # fish_prompt, etc.), not to the activation script. Tell virtualenv/venv

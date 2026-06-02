@@ -310,6 +310,7 @@ EOF
 test_bash_prompt_preserved_existing_venv() {
     local temp_dir
     temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
     mkdir -p "$temp_dir/project/.venv/bin" "$temp_dir/outside"
 
     cat > "$temp_dir/project/pyproject.toml" << 'EOF'
@@ -356,6 +357,7 @@ EOF
 test_bash_prompt_preserved_created_venv() {
     local temp_dir
     temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
     mkdir -p "$temp_dir/project" "$temp_dir/outside"
 
     cat > "$temp_dir/project/pyproject.toml" << 'EOF'
@@ -427,6 +429,7 @@ test_zsh_prompt_preserved_created_venv() {
 
     local temp_dir
     temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
     mkdir -p "$temp_dir/project" "$temp_dir/outside"
 
     cat > "$temp_dir/project/pyproject.toml" << 'EOF'
@@ -499,6 +502,7 @@ test_zsh_prompt_preserved_existing_venv() {
 
     local temp_dir
     temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
     mkdir -p "$temp_dir/project/.venv/bin" "$temp_dir/outside"
 
     cat > "$temp_dir/project/pyproject.toml" << 'EOF'
@@ -550,6 +554,7 @@ test_fish_prompt_preserved_created_venv() {
 
     local temp_dir
     temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
     mkdir -p "$temp_dir/project" "$temp_dir/outside"
 
     cat > "$temp_dir/project/pyproject.toml" << 'EOF'
@@ -636,6 +641,7 @@ test_fish_prompt_preserved_existing_venv() {
 
     local temp_dir
     temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
     mkdir -p "$temp_dir/project/.venv/bin" "$temp_dir/outside"
 
     cat > "$temp_dir/project/pyproject.toml" << 'EOF'
