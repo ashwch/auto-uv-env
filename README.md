@@ -200,6 +200,36 @@ This is why the adapters now:
 If you are deciding between this and `direnv`, `mise`, `pyenv-virtualenv`, or shell-specific plugins, see the decision guide:
 [`docs/alternatives.md`](docs/alternatives.md).
 
+## Why the installer is careful too
+
+The install script has its own first-principles rule:
+
+```text
+extract first -> install second -> clean up last
+```
+
+Why:
+
+```text
+installer shell
+  -> ask helper to download + extract release
+  -> helper returns extracted path
+  -> installer copies files into final install dirs
+  -> installer removes temporary files
+```
+
+If cleanup happens too early, installation can fail with a "No such file or directory"
+error while copying from the extracted release tree.
+
+The repository now includes a dedicated installer regression test for this lifecycle:
+
+```bash
+./test/test-installer.sh
+```
+
+That test runs the real installer flow with mocked downloads, so future changes can
+prove the temporary extracted directory stays alive until installation completes.
+
 ## Documentation Map
 
 - Installation details: [`docs/installation.md`](docs/installation.md)

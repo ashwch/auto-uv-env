@@ -6,11 +6,13 @@ on:
     paths:
       - 'docs/install.sh'
       - 'docs/uninstall.sh'
+      - 'test/test-installer.sh'
       - '.github/workflows/test-installer.yml'
   pull_request:
     paths:
       - 'docs/install.sh'
       - 'docs/uninstall.sh'
+      - 'test/test-installer.sh'
       - '.github/workflows/test-installer.yml'
 
 jobs:
@@ -26,6 +28,10 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Test installer temp-dir lifecycle regression
+      run: |
+        bash ./test/test-installer.sh
 
     - name: Test installer in fresh environment
       run: |

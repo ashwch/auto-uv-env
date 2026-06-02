@@ -148,9 +148,45 @@ download() {
     fi
 }
 
-# Download and extract the latest release
+# Download and extract the latest release.
+#
+# Important lifecycle rule:
+# - The caller owns the temporary directory.
+# - This function only fills that directory and returns the extracted path.
+#
+# Visual model:
+#
+#   main shell
+#     -> source_dir="$(download_and_extract ...)"
+#           ^ this runs in a subshell
+#
+#   download_and_extract subshell
+#     -> use caller-owned temp dir
+#     -> download archive
+#     -> extract archive
+#     -> print extracted directory
+#     -> exit
+#
+#   main shell
+#     -> still has the temp dir
+#     -> copies files into the final install location
+#     -> cleans up temp dir at the very end
+#
+# Why this matters:
+# - If this function owns the temp dir and installs an EXIT trap for it, that trap
+#   fires when the command-substitution subshell exits.
+# - That would delete the extracted files before the parent shell can copy them.
 download_and_extract() {
     platform="$1"
+    temp_dir="$2"
+
+    if [ -z "$temp_dir" ]; then
+        err "download_and_extract requires a caller-owned temporary directory"
+    fi
+
+    if [ ! -d "$temp_dir" ]; then
+        err "download_and_extract requires an existing temporary directory: $temp_dir"
+    fi
 
     # If in test mode, use current directory
     if [ "${AUTO_UV_ENV_TEST_MODE:-0}" = "1" ]; then
@@ -158,12 +194,6 @@ download_and_extract() {
         printf '%s' "$(pwd)"
         return 0
     fi
-
-    temp_dir=""
-    temp_dir="$(mktemp -d)"
-
-    # Clean up on exit
-    trap 'rm -rf "$temp_dir"' EXIT
 
     # Get the latest release URL
     info "fetching latest release"
@@ -247,6 +277,21 @@ install_auto_uv_env() {
 EOF
 
     success "installed auto-uv-env"
+}
+
+# Clean up the caller-owned installer temp directory.
+#
+# Keep this as a tiny helper so the trap declarations read like a policy:
+#
+#   normal exit   -> cleanup_install_temp_dir
+#   INT / TERM    -> cleanup_install_temp_dir; exit 1
+#
+# The empty-string guard is intentional. It keeps trap execution boring even if
+# main exits before `install_temp_dir` is assigned.
+cleanup_install_temp_dir() {
+    if [ -n "${install_temp_dir:-}" ]; then
+        rm -rf "$install_temp_dir"
+    fi
 }
 
 # Check if directory is in PATH
@@ -377,6 +422,7 @@ check_uv() {
 # Main installation function
 main() {
     platform="$(detect_platform)"
+    install_temp_dir=""
 
     say ""
     say "${BOLD}auto-uv-env installer${RESET}"
@@ -421,8 +467,21 @@ main() {
     need_cmd mkdir
     need_cmd cp
 
-    # Download and extract
-    source_dir="$(download_and_extract "$platform")"
+    # Download and extract.
+    #
+    # Visual model:
+    #
+    #   main
+    #     -> create temp dir
+    #     -> ask helper to fill it
+    #     -> install from extracted tree
+    #     -> cleanup on EXIT
+    #
+    # This keeps ownership simple: `main` owns the directory lifecycle.
+    install_temp_dir="$(mktemp -d)"
+    trap 'cleanup_install_temp_dir' EXIT
+    trap 'cleanup_install_temp_dir; exit 1' INT TERM
+    source_dir="$(download_and_extract "$platform" "$install_temp_dir")"
 
     # Install files
     install_auto_uv_env "$source_dir"

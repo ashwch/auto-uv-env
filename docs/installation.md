@@ -31,6 +31,44 @@ This installer:
 - Installs to `~/.local/bin` by default (respects XDG)
 - Sets up shell integration for bash, zsh, and fish
 - Suggests Homebrew on macOS (if available)
+- Downloads and extracts a release archive, then copies files into the final install location
+
+### Installer safety model
+
+The installer has one important lifecycle rule:
+
+```text
+1. download and extract into a temporary directory
+2. copy files into the final install directories
+3. only then clean up the temporary directory
+```
+
+Why this is spelled out:
+
+```text
+Bad sequence
+------------
+extract archive into /tmp/...
+return extracted path
+clean up /tmp/... too early
+try to copy files from a path that no longer exists
+
+Good sequence
+-------------
+extract archive into /tmp/...
+copy files into ~/.local/bin and ~/.local/share/...
+clean up /tmp/... at the very end
+```
+
+This matters because shell command substitution runs in a subshell. If cleanup is attached to the wrong shell lifetime, temporary files can disappear before installation finishes.
+
+If you want to validate that behavior locally, run the installer regression test:
+
+```bash
+./test/test-installer.sh
+```
+
+That test uses mocked downloads but the real installer control flow, so it protects the exact lifecycle contract described above.
 
 ### Option 2: Homebrew (macOS preferred) 🍺
 
