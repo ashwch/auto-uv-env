@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create Release Archive
+        shell: bash
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           SAFE_VERSION=${VERSION//\//-}
