@@ -158,8 +158,9 @@ if command -v auto-uv-env >/dev/null 2>&1; then
             unset AUTO_UV_ENV_PYTHON_VERSION
         fi
 
-        # Use the real process id (`$$`) in the temp file name.
-        # In zsh, `$` is just a literal dollar sign here, not the pid.
+        # Use the real shell pid (`$$`) in the temp file name.
+        # The old `.$.` form was not stable: in zsh, `$.` refers to a special
+        # parameter tied to job/process state, not a literal `$.` suffix.
         local state_file="/tmp/auto-uv-env.$$.state"
 
         # Get state from auto-uv-env

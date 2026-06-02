@@ -204,11 +204,23 @@ If you want to inspect the project manually:
 # What project would be used?
 auto-uv-env --check-safe "$PWD"
 
+# If you are in a nested directory, first go to the project root.
+# (auto-uv-env discovers this by walking upward to the nearest pyproject.toml.)
+project_root="$(python3 - <<'PY'
+from pathlib import Path
+p = Path.cwd().resolve()
+for cur in (p, *p.parents):
+    if (cur / 'pyproject.toml').exists():
+        print(cur)
+        break
+PY
+)"
+
 # What venv path should exist?
-ls -la .venv
+ls -la "$project_root/.venv"
 
 # Can uv create the environment directly at the project root?
-uv venv "$PWD/.venv"
+uv venv "$project_root/.venv"
 ```
 
 ### Environment Not Activating
