@@ -374,7 +374,7 @@ EOF
 
         auto-uv-env() {
             if [[ -f '$temp_dir/project/.venv/bin/activate' ]]; then
-                echo "ACTIVATE=$temp_dir/project/.venv"
+                echo ACTIVATE=$temp_dir/project/.venv
             else
                 echo 'CREATE_VENV=1'
                 echo 'PYTHON_VERSION=3.11'
@@ -445,7 +445,7 @@ EOF
 
         auto-uv-env() {
             if [[ -f '$temp_dir/project/.venv/bin/activate' ]]; then
-                echo "ACTIVATE=$temp_dir/project/.venv"
+                echo ACTIVATE=$temp_dir/project/.venv
             else
                 echo 'CREATE_VENV=1'
                 echo 'PYTHON_VERSION=3.11'
@@ -570,7 +570,7 @@ EOF
 
         function auto-uv-env
             if test -f '$temp_dir/project/.venv/bin/activate.fish'
-                echo "ACTIVATE=$temp_dir/project/.venv"
+                echo ACTIVATE=$temp_dir/project/.venv
             else
                 echo 'CREATE_VENV=1'
                 echo 'PYTHON_VERSION=3.11'

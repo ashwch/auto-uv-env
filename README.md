@@ -201,7 +201,7 @@ source bin/activate
 
 Good
 ----
-set VIRTUAL_ENV_DISABLE_PROMPT=1 only while sourcing bin/activate
+temporarily set VIRTUAL_ENV_DISABLE_PROMPT=1 while sourcing bin/activate
 then restore the previous shell variable state
   -> environment variables are imported
   -> prompt styling stays under the user's control

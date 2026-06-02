@@ -72,26 +72,23 @@ if command -v auto-uv-env >/dev/null 2>&1
 
     function _auto_uv_env_source_activate
         set -l activate_script "$argv[1]"
-        set -l had_virtual_env_disable_prompt 0
-        set -l old_virtual_env_disable_prompt ""
+        set -l prior_virtual_env_disable_prompt ""
 
         if set -q VIRTUAL_ENV_DISABLE_PROMPT
-            set had_virtual_env_disable_prompt 1
-            set old_virtual_env_disable_prompt "$VIRTUAL_ENV_DISABLE_PROMPT"
+            set prior_virtual_env_disable_prompt "$VIRTUAL_ENV_DISABLE_PROMPT"
         end
 
         # Prompt rendering belongs to the user's shell theme (starship, custom
         # fish_prompt, etc.), not to the activation script. Tell virtualenv/venv
         # activation logic to leave prompt styling alone while we import env vars.
-        set -g VIRTUAL_ENV_DISABLE_PROMPT 1
+        #
+        # We use a local exported variable here on purpose:
+        # - nested commands sourced from this helper can still see it
+        # - once the helper returns, fish restores the caller's previous variable state
+        # - that avoids leaking a changed global value back into the user's shell
+        set -lx VIRTUAL_ENV_DISABLE_PROMPT 1
         source "$activate_script"
         set -l activate_status $status
-
-        if test "$had_virtual_env_disable_prompt" -eq 1
-            set -g VIRTUAL_ENV_DISABLE_PROMPT "$old_virtual_env_disable_prompt"
-        else
-            set -e VIRTUAL_ENV_DISABLE_PROMPT
-        end
 
         return $activate_status
     end
