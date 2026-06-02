@@ -61,6 +61,24 @@ if command -v auto-uv-env >/dev/null 2>&1; then
         esac
     }
 
+    _auto_uv_env_source_activate() {
+        local activate_script="$1"
+        local had_virtual_env_disable_prompt="${VIRTUAL_ENV_DISABLE_PROMPT+x}"
+        local old_virtual_env_disable_prompt="${VIRTUAL_ENV_DISABLE_PROMPT-}"
+
+        # Prompt rendering belongs to the user's shell theme (starship, custom
+        # PROMPT/PS1, etc.), not to the activation script. Tell virtualenv/venv
+        # activation logic to leave prompt styling alone while we import env vars.
+        export VIRTUAL_ENV_DISABLE_PROMPT=1
+        source "$activate_script"
+
+        if [[ -n "$had_virtual_env_disable_prompt" ]]; then
+            export VIRTUAL_ENV_DISABLE_PROMPT="$old_virtual_env_disable_prompt"
+        else
+            unset VIRTUAL_ENV_DISABLE_PROMPT
+        fi
+    }
+
     # Function to check and activate UV environments.
     #
     # First principles:
@@ -134,7 +152,7 @@ if command -v auto-uv-env >/dev/null 2>&1; then
         # Single stat call is faster than separate -d and -f checks
         if [[ -f "$project_venv_path/bin/activate" ]] && [[ -z "${VIRTUAL_ENV:-}" ]]; then
             # Venv exists and we're not in any venv, just activate it
-            source "$project_venv_path/bin/activate"
+            _auto_uv_env_source_activate "$project_venv_path/bin/activate"
             export _AUTO_UV_ENV_ACTIVATION_DIR="$project_dir"
             local python_version python_full_version
             # Use shell parameter expansion instead of cut for performance
@@ -234,7 +252,7 @@ if command -v auto-uv-env >/dev/null 2>&1; then
 
                 # After creating a new environment, activate it
                 if [[ -f "$created_venv_path/bin/activate" ]]; then
-                    source "$created_venv_path/bin/activate"
+                    _auto_uv_env_source_activate "$created_venv_path/bin/activate"
                     export _AUTO_UV_ENV_ACTIVATION_DIR="$project_dir"
                     local auto_uv_env_python_version_val python_full_version
                     if python_full_version=$(python --version 2>&1); then
@@ -255,7 +273,7 @@ if command -v auto-uv-env >/dev/null 2>&1; then
 
             # Handle activation
             if [[ -n "$activate_path" ]] && [[ -f "$activate_path/bin/activate" ]]; then
-                source "$activate_path/bin/activate"
+                _auto_uv_env_source_activate "$activate_path/bin/activate"
                 # Track where we activated from
                 export _AUTO_UV_ENV_ACTIVATION_DIR="$(_auto_uv_env_project_from_venv_path "$activate_path")"
                 local auto_uv_env_python_version_val python_full_version
