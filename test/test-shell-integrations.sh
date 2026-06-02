@@ -130,6 +130,69 @@ test_zsh_state_file_cleanup_on_failure() {
     [[ "$result" == *"ZSH_STATE_CLEANUP_SUCCESS"* ]]
 }
 
+# Test zsh recursive hook re-entry is ignored.
+#
+# Same intent as the Bash regression test below, but for the zsh adapter.
+test_zsh_recursive_reentry_guard() {
+    if ! command -v zsh >/dev/null 2>&1; then
+        echo "ZSH not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    cd "$temp_dir"
+
+    cat > pyproject.toml << 'EOF'
+[project]
+name = "test-zsh-reentry"
+version = "1.0.0"
+requires-python = ">=3.11"
+EOF
+
+    local result
+    result=$(perl -e 'alarm shift; exec @ARGV' 5 zsh -c "
+        source '$INTEGRATION_DIR/auto-uv-env.zsh'
+        export AUTO_UV_ENV_QUIET=0
+
+        uv() {
+            case \"\$1\" in
+                python) return 0 ;;
+                venv)
+                    local target=\"\${@: -1}\"
+                    [[ \"\$target\" == 'venv' ]] && target='.venv'
+                    auto_uv_env >/dev/null 2>&1
+                    mkdir -p \"\$target/bin\"
+                    cat > \"\$target/bin/activate\" <<'ACTIVATE'
+VIRTUAL_ENV=\"$PWD/.venv\"
+export VIRTUAL_ENV
+ACTIVATE
+                    ;;
+            esac
+        }
+
+        python() { echo 'Python 3.11.0'; }
+
+        auto-uv-env() {
+            if [[ -f '.venv/bin/activate' ]]; then
+                echo \"ACTIVATE=\$PWD/.venv\"
+            else
+                echo 'CREATE_VENV=1'
+                echo 'PYTHON_VERSION=3.11'
+                echo 'MSG_SETUP=🐍 Setting up Python 3.11 with UV...'
+            fi
+        }
+
+        auto_uv_env 2>&1
+    " 2>&1)
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+
+    [[ "$result" == *"Virtual environment created"* ]] || return 1
+    [[ $(printf '%s' "$result" | grep -c 'Setting up Python 3.11 with UV' || true) -eq 1 ]]
+}
+
 # Test fish integration syntax
 test_fish_syntax() {
     if command -v fish >/dev/null 2>&1; then
@@ -173,6 +236,72 @@ test_fish_state_file_cleanup_on_failure() {
 
     rm -rf "$temp_dir"
     [[ "$result" == *"FISH_STATE_CLEANUP_SUCCESS"* ]]
+}
+
+# Test fish recursive hook re-entry is ignored.
+#
+# Same intent as the Bash regression test below, but for the fish adapter.
+test_fish_recursive_reentry_guard() {
+    if ! command -v fish >/dev/null 2>&1; then
+        echo "Fish not available, skipping"
+        return 0
+    fi
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    cd "$temp_dir"
+
+    cat > pyproject.toml << 'EOF'
+[project]
+name = "test-fish-reentry"
+version = "1.0.0"
+requires-python = ">=3.11"
+EOF
+
+    local result
+    result=$(perl -e 'alarm shift; exec @ARGV' 5 fish -c "
+        source '$INTEGRATION_DIR/auto-uv-env.fish'
+        set -gx AUTO_UV_ENV_QUIET 0
+
+        function uv
+            switch \$argv[1]
+                case python
+                    return 0
+                case venv
+                    set -l target \$argv[-1]
+                    if test \"\$target\" = 'venv'
+                        set target '.venv'
+                    end
+                    auto_uv_env >/dev/null 2>&1
+                    mkdir -p \"\$target/bin\"
+                    cat > \"\$target/bin/activate.fish\" <<'ACTIVATE'
+set -gx VIRTUAL_ENV \"$PWD/.venv\"
+ACTIVATE
+            end
+        end
+
+        function python
+            echo 'Python 3.11.0'
+        end
+
+        function auto-uv-env
+            if test -f '.venv/bin/activate.fish'
+                echo \"ACTIVATE=$PWD/.venv\"
+            else
+                echo 'CREATE_VENV=1'
+                echo 'PYTHON_VERSION=3.11'
+                echo 'MSG_SETUP=🐍 Setting up Python 3.11 with UV...'
+            end
+        end
+
+        auto_uv_env 2>&1
+    " 2>&1)
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
+
+    [[ "$result" == *"Virtual environment created"* ]] || return 1
+    [[ $(printf '%s' "$result" | grep -c 'Setting up Python 3.11 with UV' || true) -eq 1 ]]
 }
 
 # Test lazy-loading fast path in non-Python directories
@@ -770,8 +899,10 @@ run_test "Bash integration syntax" test_bash_syntax
 run_test "ZSH integration syntax" test_zsh_syntax
 run_test "ZSH prefix-collision deactivation" test_zsh_prefix_collision_deactivates_outside_tree
 run_test "ZSH state-file cleanup on failure" test_zsh_state_file_cleanup_on_failure
+run_test "ZSH recursive hook re-entry guard" test_zsh_recursive_reentry_guard
 run_test "Fish integration syntax" test_fish_syntax
 run_test "Fish state-file cleanup on failure" test_fish_state_file_cleanup_on_failure
+run_test "Fish recursive hook re-entry guard" test_fish_recursive_reentry_guard
 run_test "Non-Python fast path (lazy loading)" test_non_python_fast_path
 run_test "Subdirectory project activation" test_subdirectory_project_activation
 run_test "Subdirectory creation uses explicit project-root path" test_subdirectory_creation_uses_explicit_project_root_path
