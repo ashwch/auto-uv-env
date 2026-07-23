@@ -76,7 +76,7 @@ env -u VIRTUAL_ENV -u _AUTO_UV_ENV_ACTIVATION_DIR -u AUTO_UV_ENV_PYTHON_VERSION 
 ## Documentation Publishing
 
 - The docs site is deployed by `.github/workflows/docs.yml`.
-- Any push to `main` triggers a docs build; only `main` pushes deploy to GitHub Pages.
+- Any push to `main` triggers a docs build and deploys to Cloudflare Pages.
 - Release tags (`v*`) do not publish docs on their own.
 - Verify recent docs runs with:
 

@@ -120,7 +120,7 @@ Calculate SHA256 from the release tarball.
 Update `Formula/auto-uv-env.rb` in `ashwch/homebrew-tap` (both `url` and `sha256`).
 Commit and push the formula update.
 
-4. GitHub Pages deploy is asynchronous and main-branch-driven.
+4. Cloudflare Pages deploy is asynchronous and main-branch-driven.
 Even when a release exists, docs may lag until the latest `docs.yml` run on `main` finishes.
 
 ## Manual Fallback (Last Resort)

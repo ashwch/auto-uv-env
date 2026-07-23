@@ -239,7 +239,7 @@ Configured in `.pre-commit-config.yaml`:
 ### CI Workflows
 
 - `ci.yml`: lint, security scan, tests, Homebrew audit, release checks, perf checks.
-- `docs.yml`: builds/deploys Jekyll docs to Pages.
+- `docs.yml`: builds/deploys Jekyll docs to Cloudflare Pages.
 - `release.yml`: creates release artifacts from version tags.
 - `test-installer.yml`: validates install/uninstall behavior across platforms.
 
@@ -318,7 +318,7 @@ If someone asks why there is no release after merge, check whether a new tag was
 5. Release automation can partially succeed.
 Validate release state directly with `gh release view vX.Y.Z` even if the `release.yml` workflow reports failure.
 
-6. GitHub Pages deploy is asynchronous.
+6. Cloudflare Pages deploy is asynchronous.
 After merging docs updates, confirm the latest successful `docs.yml` run before expecting `https://auto-uv-env.ashwch.com/` to reflect changes.
 
 ---
